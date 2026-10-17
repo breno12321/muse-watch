@@ -9,6 +9,7 @@ final class RelayConnectivity: NSObject, WCSessionDelegate {
     var onRequest: ((RelayRequest, URL?) -> Bool)?
     var onSnapshot: ((RelaySnapshot) -> Void)?
     var onSync: ((Bool) -> Void)?
+    var onChatRefresh: ((ChatRefreshRequest) -> Data?)?
     var onReceipt: ((UUID) -> Void)?
     var onStatus: ((Bool) -> Void)?
     var onAsset: ((String, URL, String) -> Void)?
@@ -19,6 +20,7 @@ final class RelayConnectivity: NSObject, WCSessionDelegate {
     private var session: WCSession? { WCSession.isSupported() ? .default : nil }
     private var activated: Bool { session?.activationState == .activated }
     private var immediateVoice = Set<UUID>()
+    private var chatToRefresh: ChatRefreshRequest?
     private var incomingVoice: [UUID: (assembly: VoiceChunkAssembly, date: Date)] = [:]
     private var canSendImmediately: Bool {
         #if os(watchOS)
@@ -35,13 +37,27 @@ final class RelayConnectivity: NSObject, WCSessionDelegate {
         session?.delegate = self; session?.activate()
     }
     var reachable: Bool { activated && session?.isReachable == true }
-    func refresh() {
+    func refresh(chat: ChatRefreshRequest? = nil) {
+        if let chat { chatToRefresh = chat }
         guard activated else { session?.activate(); return }
         #if os(watchOS)
         if let data = session?.receivedApplicationContext[Self.snapshotKey] as? Data { receiveSnapshot(data) }
-        if canSendImmediately { session?.sendMessage(["sync": true], replyHandler: { [weak self] reply in
+        // A normal sync still requests the full history/avatar transfer. Only chat opens
+        // and reconnects use the focused response.
+        let requestedChat = chat == chatToRefresh ? chat : nil
+        var request: [String: Any] = ["sync": true]
+        if let requestedChat, let bytes = try? JSONEncoder().encode(requestedChat) { request["chatRefresh"] = bytes }
+        if canSendImmediately { session?.sendMessage(request, replyHandler: { [weak self] reply in
             guard let data = reply[Self.snapshotKey] as? Data else { return }
-            Task { @MainActor in self?.receiveSnapshot(data) }
+            Task { @MainActor in
+                guard let self else { return }
+                if let requestedChat {
+                    guard data.count <= 55000, self.chatToRefresh == requestedChat,
+                          let snapshot = try? JSONDecoder().decode(RelaySnapshot.self, from: data),
+                          snapshot.account == requestedChat.account else { return }
+                }
+                self.receiveSnapshot(data)
+            }
         }, errorHandler: { _ in }) }
         #endif
         onStatus?(reachable)
@@ -164,10 +180,11 @@ final class RelayConnectivity: NSObject, WCSessionDelegate {
     }
     private func receiveSnapshot(_ data: Data) {
         guard data.count <= 2 * 1024 * 1024, let snapshot = try? JSONDecoder().decode(RelaySnapshot.self, from: data), snapshot.version == 1 else { return }
+        if let chatToRefresh, snapshot.account != chatToRefresh.account { self.chatToRefresh = nil }
         onSnapshot?(snapshot)
     }
-    nonisolated func session(_ session: WCSession, activationDidCompleteWith activationState: WCSessionActivationState, error: Error?) { Task { @MainActor in self.refresh(); self.onSync?(false) } }
-    nonisolated func sessionReachabilityDidChange(_ session: WCSession) { Task { @MainActor in self.refresh(); if self.reachable { self.onSync?(false) } } }
+    nonisolated func session(_ session: WCSession, activationDidCompleteWith activationState: WCSessionActivationState, error: Error?) { Task { @MainActor in self.refresh(chat: self.chatToRefresh); self.onSync?(false) } }
+    nonisolated func sessionReachabilityDidChange(_ session: WCSession) { Task { @MainActor in self.refresh(chat: self.chatToRefresh); if self.reachable { self.onSync?(false) } } }
     nonisolated func session(_ session: WCSession, didReceiveApplicationContext applicationContext: [String: Any]) {
         guard let data = applicationContext[Self.snapshotKey] as? Data else { return }
         Task { @MainActor in self.receiveSnapshot(data) }
@@ -190,6 +207,14 @@ final class RelayConnectivity: NSObject, WCSessionDelegate {
     }
     nonisolated func session(_ session: WCSession, didReceiveMessage message: [String: Any], replyHandler: @escaping ([String: Any]) -> Void) {
         let reply = ConnectivityReply(replyHandler)
+        if let bytes = message["chatRefresh"] as? Data {
+            guard bytes.count <= 1024, let request = try? JSONDecoder().decode(ChatRefreshRequest.self, from: bytes) else { replyHandler([:]); return }
+            Task { @MainActor in
+                guard let data = self.onChatRefresh?(request) else { reply.send([:]); return }
+                reply.send([Self.snapshotKey: data])
+            }
+            return
+        }
         if let bytes = message["chatRename"] as? Data, bytes.count < 20000,
            let edit = try? JSONDecoder().decode(ChatRename.self, from: bytes) {
             Task { @MainActor in reply.send(["renamed": self.onRename?(edit) ?? false]) }; return

@@ -36,10 +36,10 @@ final class MuseStore {
         var pinnedChatIDs: Set<UUID>?; var deletedChatIDs: Set<UUID>?
         var pendingRenames: [UUID: ChatRename]?
     }
-    init(directory: URL? = nil, connectivity: Bool = true) {
+    init(directory: URL? = nil, connectivity: Bool = true, relay suppliedRelay: RelayConnectivity? = nil) {
         self.directory = directory ?? FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
         file = self.directory.appendingPathComponent("muse-live-watch.json")
-        relay = connectivity ? RelayConnectivity() : nil
+        relay = suppliedRelay ?? (connectivity ? RelayConnectivity() : nil)
         do {
             try FileManager.default.createDirectory(at: self.directory, withIntermediateDirectories: true)
             if FileManager.default.fileExists(atPath: file.path) {
@@ -81,9 +81,8 @@ final class MuseStore {
     var orderedChats: [Conversation] {
         listedChats.sorted {
             if isPinned($0.id) != isPinned($1.id) { return isPinned($0.id) }
-            if ($0.id == activeChatID) != ($1.id == activeChatID) { return $0.id == activeChatID }
-            let firstDate = $0.messages.last?.date ?? .distantPast
-            let secondDate = $1.messages.last?.date ?? .distantPast
+            let firstDate = max($0.activityDate, $0.messages.map(\.date).max() ?? .distantPast)
+            let secondDate = max($1.activityDate, $1.messages.map(\.date).max() ?? .distantPast)
             if firstDate != secondDate { return firstDate > secondDate }
             return $0.id.uuidString < $1.id.uuidString
         }
@@ -127,7 +126,7 @@ final class MuseStore {
                 let asset = value.replyAudio.flatMap { replyAudioFiles[$0.id.uuidString] }
                 let cached = value.role == "muse" && asset?.account == snapshot.account && asset?.chatID == chat.id && asset?.messageID == value.id && asset?.audio == value.replyAudio && asset.map { FileManager.default.fileExists(atPath: audioURL($0.audio.filename).path) } == true
                 return Message(id: value.id, role: value.role == "user" ? .user : .muse, text: value.text, date: value.date, audioFile: value.role == "user" ? value.requestID.flatMap { audioFiles[$0.uuidString] } : (cached ? value.replyAudio?.filename : nil), duration: value.role == "muse" ? value.replyAudio?.duration : value.duration, saved: bookmarks.contains(value.id), delivery: value.delivery, detail: value.detail, replyAudio: value.replyAudio, replyAudioState: value.replyAudio == nil ? value.replyAudioState : (cached ? .ready : .preparing))
-            }, earlier: chat.isLegacyStarter && pendingRenames[chat.id] == nil)
+            }, earlier: chat.isLegacyStarter && pendingRenames[chat.id] == nil, activityDate: chat.activityDate)
         }
     }
     func persist() {
@@ -155,6 +154,12 @@ final class MuseStore {
     func read(_ id: UUID) {
         guard conversation(id) != nil, selectedChatID != id else { return }
         selectedChatID = id; persist()
+    }
+    func openChat(_ id: UUID) {
+        guard conversation(id) != nil, let account = snapshot?.account, !account.isEmpty else { return }
+        read(id)
+        relay?.refresh(chat: ChatRefreshRequest(account: account, chatID: id))
+        flush()
     }
     func isPinned(_ id: UUID) -> Bool { pinnedChatIDs.contains(id) }
     @discardableResult func renameChat(_ id: UUID, title: String) -> Bool {

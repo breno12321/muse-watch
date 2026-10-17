@@ -8,7 +8,8 @@ import Foundation
     var onReplyAudio: ((ReplyAudioTransfer, URL) -> Void)?
     func requestReplyAudio(_ asset: ReplyAudioRequest) {}
     func enqueueRename(_ edit: ChatRename) throws {}
-    func refresh() {}
+    var requestedChats: [ChatRefreshRequest] = []
+    func refresh(chat: ChatRefreshRequest? = nil) { if let chat { requestedChats.append(chat) } }
     func enqueue(_ request: RelayRequest, audio: URL?) throws {}
 }
 #endif

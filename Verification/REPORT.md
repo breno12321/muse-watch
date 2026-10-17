@@ -4,7 +4,15 @@ Device screenshots and Bluetooth logs are kept locally and excluded from Git. Th
 
 **The live Muse Watch app is implemented and installed on the physical iPhone and Apple Watch. Real Watch text and microphone audio reached Muse, and real replies returned to both devices. A first message in a new Ideas conversation also completed and synced to the Watch.** Pairing, credential refresh, and reconnect were previously verified with this account. The older stages below are chronological records, superseded by the final results here.
 
-## Transcript input, reply-format diagnosis, and swipe cleanup — latest update
+## Chat activity ordering and refresh on open — latest update
+
+iPhone chats now sort by latest message/activity; Watch uses the same recency rule with pinned chats first. Selecting an older chat no longer promotes it above newer activity. New empty chats receive a creation date, legacy archives still decode, and compact snapshots retain activity metadata for chats whose messages fall outside the global mirror.
+
+Opening or reopening a Watch conversation requests a bounded, account-scoped snapshot of that chat's latest captured messages from iPhone. Cached content stays visible offline; reconnect retries the selected refresh. Existing merge behavior preserves other chats, bookmarks, and recordings. Normal Sync still requests full local history/avatar transfer. This does not add undocumented Muse history retrieval or repost accepted messages.
+
+All 53 protocol tests and Watch model checks passed, including focused refresh under a busy global mirror, repeated opening, updated reply text, recency/pin ordering, persistence, payload bounds, and account/chat validation. The signed Debug device build passed. Updated apps were installed on both physical devices. The Watch list, opening/reopening a saved conversation at its latest text, and Back navigation were visually checked; the iPhone was locked during its visual list check. Only one chat was visible on Watch, so multi-chat ordering is covered by synthetic checks rather than that device view. No new live account messages were sent.
+
+## Transcript input, reply-format diagnosis, and swipe cleanup — previous update
 
 ### Text-only replies — final direction
 

@@ -21,6 +21,7 @@ struct Conversation: Identifiable, Equatable {
     var messages: [Message]
     var unread = false
     var earlier = false
+    var activityDate: Date = .distantPast
 }
 struct VoiceDraft: Codable {
     let file: String

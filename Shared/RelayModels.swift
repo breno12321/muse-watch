@@ -93,13 +93,25 @@ public struct RelayChat: Codable, Hashable, Sendable, Identifiable {
     public var serverTitle: String?
     public var customTitle: String?
     public var nameRevision: Int?
+    public var createdAt: Date?
+    public var updatedAt: Date?
+    public var activityDate: Date { max(createdAt ?? .distantPast, updatedAt ?? .distantPast) }
     public var displayTitle: String { customTitle ?? serverTitle ?? title }
     /// Exact title/symbol pairs seeded by the original prototype, not Muse account sections.
     public var isLegacyStarter: Bool {
         guard customTitle == nil, serverTitle == nil else { return false }
         return ["Check-in": "sparkles", "Ideas": "lightbulb", "Goals": "checkmark.circle"][title] == symbol
     }
-    public init(id: UUID = UUID(), title: String, symbol: String, exists: Bool = false) { self.id = id; self.title = title; self.symbol = symbol; self.exists = exists }
+    public init(id: UUID = UUID(), title: String, symbol: String, exists: Bool = false, createdAt: Date? = nil) { self.id = id; self.title = title; self.symbol = symbol; self.exists = exists; self.createdAt = createdAt }
+    public static func orderedByActivity(_ chats: [RelayChat], messages: [RelayMessage]) -> [RelayChat] {
+        var dates: [UUID: Date] = [:]
+        for chat in chats { dates[chat.id] = chat.activityDate }
+        for message in messages { dates[message.chatID] = max(dates[message.chatID] ?? .distantPast, message.date) }
+        return chats.sorted {
+            let first = dates[$0.id] ?? .distantPast, second = dates[$1.id] ?? .distantPast
+            return first == second ? $0.id.uuidString < $1.id.uuidString : first > second
+        }
+    }
     public mutating func rename(_ name: String?) throws {
         guard (nameRevision ?? 0) >= 0, (nameRevision ?? 0) < Int.max else { throw RelayError.invalid }
         let cleaned = name?.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -113,7 +125,7 @@ public struct RelayChat: Codable, Hashable, Sendable, Identifiable {
         let titles = Set(chats.map(\.title))
         var number = 1
         while titles.contains("Chat \(number)") { number += 1 }
-        return RelayChat(title: "Chat \(number)", symbol: "bubble.left.and.bubble.right")
+        return RelayChat(title: "Chat \(number)", symbol: "bubble.left.and.bubble.right", createdAt: .now)
     }
 }
 /// Watch name edits are metadata only: they never become a user message or a Muse API request.
@@ -177,8 +189,15 @@ public struct RelaySnapshot: Codable, Sendable {
     public var chats: [RelayChat]
     public var messages: [RelayMessage]
     public var updatedAt: Date
+    public func contextData(for request: ChatRefreshRequest) throws -> Data {
+        guard paired, !request.account.isEmpty, request.account == account,
+              chats.contains(where: { $0.id == request.chatID }) else { throw RelayError.invalid }
+        var focused = withActivityDates()
+        focused.messages = messages.filter { $0.chatID == request.chatID }.sorted { $0.date < $1.date }
+        return try focused.contextData()
+    }
     public func contextData() throws -> Data {
-        var compact = self
+        var compact = withActivityDates()
         compact.messages = Array(messages.suffix(80))
         for i in compact.messages.indices { compact.messages[i].text = String(compact.messages[i].text.prefix(8000)) }
         var data = try JSONEncoder().encode(compact)
@@ -187,6 +206,22 @@ public struct RelaySnapshot: Codable, Sendable {
         }
         guard data.count <= 55000 else { throw RelayError.invalid }; return data
     }
+    private func withActivityDates() -> RelaySnapshot {
+        var result = self
+        // Keep recency metadata even when a chat's messages fall outside the bounded snapshot.
+        for i in result.chats.indices {
+            let id = result.chats[i].id
+            if let latest = messages.lazy.filter({ $0.chatID == id }).map(\.date).max() {
+                result.chats[i].updatedAt = max(result.chats[i].activityDate, latest)
+            }
+        }
+        return result
+    }
+}
+public struct ChatRefreshRequest: Codable, Equatable, Sendable {
+    public let account: String
+    public let chatID: UUID
+    public init(account: String, chatID: UUID) { self.account = account; self.chatID = chatID }
 }
 public struct JournalEntry: Codable, Sendable, Identifiable {
     public var request: RelayRequest

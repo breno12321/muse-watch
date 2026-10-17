@@ -23,12 +23,12 @@ struct ChatView: View {
                     Color.clear.frame(height: 1).id("latest")
                 }.padding(.horizontal, 3).padding(.bottom, 4)
             }
-            .task {
-                store.read(id)
+            .task(id: id) {
+                store.openChat(id)
                 try? await Task.sleep(for: .milliseconds(150))
                 proxy.scrollTo("latest", anchor: .bottom)
             }
-            .onChange(of: store.conversation(id)?.messages.count) { _, _ in withAnimation { proxy.scrollTo("latest", anchor: .bottom) } }
+            .onChange(of: store.conversation(id)?.messages.last) { _, _ in withAnimation { proxy.scrollTo("latest", anchor: .bottom) } }
         }
         .navigationTitle(store.conversation(id)?.title ?? "Chat").navigationBarTitleDisplayMode(.inline)
         .navigationBarBackButtonHidden(false)

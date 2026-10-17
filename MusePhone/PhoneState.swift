@@ -98,6 +98,12 @@ final class PhoneState {
         } catch { storageReady = false; self.error = "Your saved setup or history could not be opened. It has been preserved. \(error.localizedDescription)" }
         relay.onRequest = { [weak self] request, audio in self?.receive(request, audio: audio) ?? false }
         relay.onSync = { [weak self] assets in self?.publish(); if assets { self?.sendAssets() }; self?.startProcessing() }
+        relay.onChatRefresh = { [weak self] request in
+            guard let self, self.storageReady, self.paired, request.account == self.snapshot().account,
+                  self.chats.contains(where: { $0.id == request.chatID }) else { return nil }
+            self.startProcessing()
+            return try? self.snapshot().contextData(for: request)
+        }
         relay.onStatus = { [weak self] reachable in self?.watchReachable = reachable }
         relay.onReplyAudioRequest = { [weak self] request in self?.requestReplyAudio(request) ?? false }
         relay.onRename = { [weak self] edit in self?.receiveRename(edit) ?? false }
@@ -109,8 +115,8 @@ final class PhoneState {
     private func defaultChats(mainID: UUID = UUID()) -> [RelayChat] {
         [RelayChat(id: mainID, title: museName, symbol: "bubble.left.and.bubble.right")]
     }
-    var visibleChats: [RelayChat] { chats.filter { !$0.isLegacyStarter } }
-    var earlierChats: [RelayChat] { chats.filter(\.isLegacyStarter) }
+    var visibleChats: [RelayChat] { RelayChat.orderedByActivity(chats.filter { !$0.isLegacyStarter }, messages: messages) }
+    var earlierChats: [RelayChat] { RelayChat.orderedByActivity(chats.filter(\.isLegacyStarter), messages: messages) }
     @discardableResult func createChat() -> RelayChat? {
         guard paired, storageReady else { return nil }
         let chat = RelayChat.fresh(in: chats)
@@ -186,6 +192,7 @@ final class PhoneState {
                 setDelivery(id, .accepted); status = "Waiting for \(museName)…"; changed()
             case .reply(let id, let text, let done):
                 guard let requestID = activeRequest, let entry = journal.entries.first(where: { $0.id == requestID }) else { continue }
+                if messages.first(where: { $0.id == id })?.text != text, let index = chats.firstIndex(where: { $0.id == entry.request.chatID }) { chats[index].updatedAt = .now }
                 if let index = messages.firstIndex(where: { $0.id == id }) { messages[index].text = text }
                 else { messages.append(RelayMessage(id: id, requestID: requestID, chatID: entry.request.chatID, role: "muse", text: text)) }
                 if done {

@@ -3,6 +3,44 @@ import CryptoKit
 @testable import MuseCore
 
 final class RelayTests: XCTestCase {
+    func testChatsSortByActivityIncludingEmptyAndLegacyChats() throws {
+        let old = RelayChat(title: "Older", symbol: "bubble")
+        var recent = RelayChat(title: "Recent", symbol: "bubble")
+        let empty = RelayChat(title: "New", symbol: "bubble", createdAt: Date(timeIntervalSince1970: 300))
+        let messages = [
+            RelayMessage(id: "new", chatID: recent.id, role: "muse", text: "New", date: Date(timeIntervalSince1970: 200)),
+            RelayMessage(id: "old", chatID: old.id, role: "muse", text: "Old", date: Date(timeIntervalSince1970: 100)),
+            RelayMessage(id: "earlier", chatID: recent.id, role: "user", text: "Earlier", date: Date(timeIntervalSince1970: 50))
+        ]
+        XCTAssertEqual(RelayChat.orderedByActivity([old, recent, empty], messages: messages).map(\.id), [empty.id, recent.id, old.id])
+        recent.updatedAt = Date(timeIntervalSince1970: 400) // Existing streamed reply changed in place.
+        XCTAssertEqual(RelayChat.orderedByActivity([old, empty, recent], messages: messages).first?.id, recent.id)
+        let legacy = Data("{\"id\":\"\(old.id)\",\"title\":\"Older\",\"symbol\":\"bubble\",\"exists\":true}".utf8)
+        XCTAssertEqual(try JSONDecoder().decode(RelayChat.self, from: legacy).activityDate, .distantPast)
+        let tied = [old, RelayChat(title: "Also empty", symbol: "bubble")]
+        XCTAssertEqual(RelayChat.orderedByActivity(tied, messages: []).map(\.id), RelayChat.orderedByActivity(tied.reversed(), messages: []).map(\.id))
+    }
+    func testChatRefreshReturnsLatestMessagesWithinAccountAndPayloadBounds() throws {
+        let quiet = RelayChat(title: "Quiet", symbol: "bubble", exists: true)
+        let busy = RelayChat(title: "Busy", symbol: "bubble", exists: true)
+        let messages = (0..<100).map { RelayMessage(id: "quiet-\($0)", chatID: quiet.id, role: "muse", text: String(repeating: "🪷", count: 500), date: Date(timeIntervalSince1970: Double($0))) }
+            + (100..<200).map { RelayMessage(id: "busy-\($0)", chatID: busy.id, role: "muse", text: "Busy", date: Date(timeIntervalSince1970: Double($0))) }
+        var snapshot = RelaySnapshot(account: "test", revision: 3, paired: true, status: "Ready", museName: "Muse", personName: "You", chats: [quiet, busy], messages: messages, updatedAt: .now)
+        let global = try JSONDecoder().decode(RelaySnapshot.self, from: snapshot.contextData())
+        XCTAssertFalse(global.messages.contains { $0.chatID == quiet.id })
+        let request = ChatRefreshRequest(account: "test", chatID: quiet.id)
+        let data = try snapshot.contextData(for: request)
+        let focused = try JSONDecoder().decode(RelaySnapshot.self, from: data)
+        XCTAssertLessThanOrEqual(data.count, 55000)
+        XCTAssertTrue(focused.messages.allSatisfy { $0.chatID == quiet.id })
+        XCTAssertEqual(focused.messages.last?.id, "quiet-99")
+        XCTAssertEqual(focused.chats.count, 2)
+        XCTAssertEqual(RelayChat.orderedByActivity(focused.chats, messages: focused.messages).first?.id, busy.id)
+        XCTAssertThrowsError(try snapshot.contextData(for: ChatRefreshRequest(account: "foreign", chatID: quiet.id)))
+        XCTAssertThrowsError(try snapshot.contextData(for: ChatRefreshRequest(account: "test", chatID: UUID())))
+        snapshot.paired = false
+        XCTAssertThrowsError(try snapshot.contextData(for: request))
+    }
     func testVoiceTranscriptIsDurableAndCannotFallBackToCaptionOrRepostAcceptedTurn() throws {
         let voice = RelayRequest(account: "test", chatID: UUID(), text: "Caption is not the transcript", audioSHA256: String(repeating: "a", count: 64), duration: 2)
         var journal = RelayJournal()
