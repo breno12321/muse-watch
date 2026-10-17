@@ -7,6 +7,7 @@ import Foundation
     var onAsset: ((String, URL, String) -> Void)?
     var onReplyAudio: ((ReplyAudioTransfer, URL) -> Void)?
     func requestReplyAudio(_ asset: ReplyAudioRequest) {}
+    func enqueueRename(_ edit: ChatRename) throws {}
     func refresh() {}
     func enqueue(_ request: RelayRequest, audio: URL?) throws {}
 }

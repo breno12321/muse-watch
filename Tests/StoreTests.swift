@@ -187,6 +187,50 @@ import Foundation
         try JSONSerialization.data(withJSONObject: oldPreferences).write(to: listDirectory.appendingPathComponent("muse-live-watch.json"))
         precondition(MuseStore(directory: listDirectory, connectivity: false).error == nil)
         print("PASS: pinned ordering, unpin, durable Watch-only deletion, sync/relaunch, last-chat replacement, draft/outbox/sending guards, write rollback and legacy/account isolation")
+        let renameDirectory = directory.appendingPathComponent("WatchNames")
+        let names = MuseStore(directory: renameDirectory, connectivity: false)
+        names.receive(snapshot)
+        precondition(names.renameChat(chat.id, title: "  Watch ideas  "))
+        precondition(names.conversation(chat.id)?.title == "Watch ideas" && names.conversation(chat.id)?.messages.count == snapshot.messages.count)
+        struct RenameArchive: Decodable { let pendingRenames: [UUID: ChatRename]?; let outbox: [RelayRequest] }
+        let namesURL = renameDirectory.appendingPathComponent("muse-live-watch.json")
+        func readNameArchive() throws -> RenameArchive { try JSONDecoder().decode(RenameArchive.self, from: Data(contentsOf: namesURL)) }
+        let firstNameArchive = try readNameArchive(); precondition(firstNameArchive.outbox.isEmpty)
+        let namesRestored = MuseStore(directory: renameDirectory, connectivity: false)
+        precondition(namesRestored.conversation(chat.id)?.title == "Watch ideas")
+        precondition(namesRestored.renameChat(chat.id, title: "Latest Watch name"))
+        var unacknowledged = snapshot; unacknowledged.revision = 2
+        namesRestored.receive(unacknowledged)
+        precondition(namesRestored.conversation(chat.id)?.title == "Latest Watch name")
+        let nameEdit = try readNameArchive().pendingRenames![chat.id]!
+        precondition(nameEdit.revision == 2)
+        var nameAck = snapshot; nameAck.revision = 3
+        try nameEdit.apply(to: &nameAck.chats, account: nameAck.account)
+        namesRestored.receive(nameAck)
+        let receivedNameArchive = try readNameArchive(); precondition(receivedNameArchive.pendingRenames?.isEmpty == true)
+        precondition(namesRestored.conversation(chat.id)?.title == "Latest Watch name")
+        try nameAck.chats[0].rename("Changed on iPhone"); nameAck.revision = 4
+        namesRestored.receive(nameAck)
+        precondition(namesRestored.conversation(chat.id)?.title == "Changed on iPhone")
+        let namedEmpty = namesRestored.createChat()!
+        precondition(namesRestored.renameChat(namedEmpty, title: "Empty named chat"))
+        let emptyEdit = try readNameArchive().pendingRenames![namedEmpty]!
+        precondition(emptyEdit.newChat?.id == namedEmpty)
+        var emptyAck = nameAck; emptyAck.revision = 5
+        try emptyEdit.apply(to: &emptyAck.chats, account: emptyAck.account)
+        namesRestored.receive(emptyAck)
+        let emptyNameArchive = try readNameArchive(); precondition(emptyNameArchive.pendingRenames?.isEmpty == true)
+        precondition(namesRestored.conversation(namedEmpty)?.title == "Empty named chat")
+        precondition(namesRestored.renameChat(chat.id, title: "Still pending"))
+        namesRestored.receive(other)
+        let changedAccountNameArchive = try readNameArchive(); precondition(changedAccountNameArchive.pendingRenames?.isEmpty == true)
+        precondition(namesRestored.conversation(chat.id)?.title == chat.title)
+        precondition(!namesRestored.renameChat(chat.id, title: "\n"))
+        precondition(namesRestored.conversation(chat.id)?.title == chat.title)
+        // Reuse the failed-write store: a rename must roll back its pending override too.
+        precondition(!failureList.renameChat(chat.id, title: "Must not leak into UI"))
+        precondition(failureList.conversation(chat.id)?.title == chat.title)
+        print("PASS: offline Watch renames, durable edit queue, snapshot acknowledgements, phone edits, empty-chat adoption, no message posts, rollback and account isolation")
         let corrupted = directory.appendingPathComponent("muse-live-watch.json")
         let bad = Data("not json".utf8); try bad.write(to: corrupted)
         let broken = MuseStore(directory: directory, connectivity: false)

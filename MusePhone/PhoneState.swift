@@ -93,6 +93,7 @@ final class PhoneState {
         relay.onSync = { [weak self] assets in self?.publish(); if assets { self?.sendAssets() }; self?.startProcessing() }
         relay.onStatus = { [weak self] reachable in self?.watchReachable = reachable }
         relay.onReplyAudioRequest = { [weak self] request in self?.requestReplyAudio(request) ?? false }
+        relay.onRename = { [weak self] edit in self?.receiveRename(edit) ?? false }
         listener = Task { [weak self] in await self?.listen() }
     }
     private func defaultChats(mainID: UUID = UUID()) -> [RelayChat] {
@@ -114,6 +115,14 @@ final class PhoneState {
         do { try persist() }
         catch { chats[index] = previous; self.error = "Couldn’t save the chat name."; return false }
         publish(); return true
+    }
+    private func receiveRename(_ edit: ChatRename) -> Bool {
+        guard paired, storageReady, let account = credentialNodeID else { return false }
+        let previous = chats
+        do {
+            if try edit.apply(to: &chats, account: account) { try persist() }
+            publish(); return true
+        } catch { chats = previous; return false }
     }
     private func snapshot() -> RelaySnapshot {
         RelaySnapshot(account: credentialNodeID ?? "", revision: revision, paired: paired, status: status, museName: museName, personName: personName, avatarRevision: avatarRevision, chats: chats, messages: messages, updatedAt: .now)

@@ -24,6 +24,7 @@ final class MuseStore {
     private var localChats: [RelayChat] = []
     private var pinnedChatIDs = Set<UUID>()
     private var deletedChatIDs = Set<UUID>()
+    private var pendingRenames: [UUID: ChatRename] = [:]
     private var replyAudioFiles: [String: ReplyAudioTransfer] = [:]
     private var bookmarks = Set<String>()
     private var audioFiles: [String: String] = [:]
@@ -33,6 +34,7 @@ final class MuseStore {
         var localChats: [RelayChat]?; var selectedChatID: UUID?
         var replyAudioFiles: [String: ReplyAudioTransfer]?
         var pinnedChatIDs: Set<UUID>?; var deletedChatIDs: Set<UUID>?
+        var pendingRenames: [UUID: ChatRename]?
     }
     init(directory: URL? = nil, connectivity: Bool = true) {
         self.directory = directory ?? FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
@@ -46,6 +48,7 @@ final class MuseStore {
                 localChats = saved.localChats ?? []; selectedChatID = saved.selectedChatID
                 replyAudioFiles = saved.replyAudioFiles ?? [:]
                 pinnedChatIDs = saved.pinnedChatIDs ?? []; deletedChatIDs = saved.deletedChatIDs ?? []
+                pendingRenames = saved.pendingRenames ?? [:]
                 rebuild()
             }
         } catch { canPersist = false; self.error = "Your saved Watch history could not be opened. It has been preserved." }
@@ -92,9 +95,13 @@ final class MuseStore {
             for asset in replyAudioFiles.values { try? FileManager.default.removeItem(at: audioURL(asset.audio.filename)) }
             outbox = []; bookmarks = []; audioFiles = [:]; draft = nil; snapshot = nil; localChats = []; selectedChatID = nil; replyAudioFiles = [:]
             pinnedChatIDs = []; deletedChatIDs = []
+            pendingRenames = [:]
             try? FileManager.default.removeItem(at: avatarURL); avatarVersion = UUID()
         }
         var incoming = value
+        pendingRenames = pendingRenames.filter { id, edit in
+            !value.chats.contains { $0.id == id && ($0.nameRevision ?? 0) >= edit.revision }
+        }
         localChats.removeAll { chat in value.chats.contains(where: { $0.id == chat.id }) }
         incoming.chats += localChats
         let present = Set(incoming.messages.map(\.id))
@@ -110,7 +117,7 @@ final class MuseStore {
         paired = snapshot.paired; museName = snapshot.museName; personName = snapshot.personName
         connectionStatus = snapshot.status; lastSynced = snapshot.updatedAt
         conversations = snapshot.chats.filter { !deletedChatIDs.contains($0.id) }.map { chat in
-            Conversation(id: chat.id, title: chat.displayTitle, symbol: chat.symbol, messages: snapshot.messages.filter { $0.chatID == chat.id }.map { value in
+            Conversation(id: chat.id, title: pendingRenames[chat.id]?.title ?? chat.displayTitle, symbol: chat.symbol, messages: snapshot.messages.filter { $0.chatID == chat.id }.map { value in
                 let asset = value.replyAudio.flatMap { replyAudioFiles[$0.id.uuidString] }
                 let cached = value.role == "muse" && asset?.account == snapshot.account && asset?.chatID == chat.id && asset?.messageID == value.id && asset?.audio == value.replyAudio && asset.map { FileManager.default.fileExists(atPath: audioURL($0.audio.filename).path) } == true
                 return Message(id: value.id, role: value.role == "user" ? .user : .muse, text: value.text, date: value.date, audioFile: value.role == "user" ? value.requestID.flatMap { audioFiles[$0.uuidString] } : (cached ? value.replyAudio?.filename : nil), duration: value.role == "muse" ? value.replyAudio?.duration : value.duration, saved: bookmarks.contains(value.id), delivery: value.delivery, detail: value.detail, replyAudio: value.replyAudio, replyAudioState: value.replyAudio == nil ? value.replyAudioState : (cached ? .ready : .preparing))
@@ -122,7 +129,7 @@ final class MuseStore {
     }
     private func save() throws {
         guard canPersist else { throw RelayError.invalid }
-        try JSONEncoder().encode(Saved(snapshot: snapshot, outbox: outbox, bookmarks: bookmarks, audioFiles: audioFiles, draft: draft, localChats: localChats, selectedChatID: selectedChatID, replyAudioFiles: replyAudioFiles, pinnedChatIDs: pinnedChatIDs, deletedChatIDs: deletedChatIDs)).write(to: file, options: [.atomic, .completeFileProtectionUntilFirstUserAuthentication])
+        try JSONEncoder().encode(Saved(snapshot: snapshot, outbox: outbox, bookmarks: bookmarks, audioFiles: audioFiles, draft: draft, localChats: localChats, selectedChatID: selectedChatID, replyAudioFiles: replyAudioFiles, pinnedChatIDs: pinnedChatIDs, deletedChatIDs: deletedChatIDs, pendingRenames: pendingRenames)).write(to: file, options: [.atomic, .completeFileProtectionUntilFirstUserAuthentication])
     }
     func receiveReplyAudio(_ asset: ReplyAudioTransfer, from url: URL) {
         defer { try? FileManager.default.removeItem(at: url) }
@@ -144,6 +151,21 @@ final class MuseStore {
         selectedChatID = id; persist()
     }
     func isPinned(_ id: UUID) -> Bool { pinnedChatIDs.contains(id) }
+    @discardableResult func renameChat(_ id: UUID, title: String) -> Bool {
+        guard canPersist, paired, conversation(id) != nil, let snapshot,
+              let chat = snapshot.chats.first(where: { $0.id == id }) else { return false }
+        let previous = pendingRenames[id]
+        do {
+            let revision = max(chat.nameRevision ?? 0, previous?.revision ?? 0)
+            guard revision >= 0, revision < Int.max - 1 else { throw RelayError.invalid }
+            let edit = ChatRename(account: snapshot.account, chatID: id, title: title.trimmingCharacters(in: .whitespacesAndNewlines), revision: revision + 1, newChat: localChats.first { $0.id == id })
+            try edit.validate(); pendingRenames[id] = edit
+            try save()
+        } catch {
+            pendingRenames[id] = previous; self.error = "Couldn’t save the name. Use 1–80 characters."; return false
+        }
+        rebuild(); flush(); return true
+    }
     func togglePinned(_ id: UUID) {
         guard canPersist, conversation(id) != nil else { return }
         let previous = pinnedChatIDs
@@ -218,6 +240,7 @@ final class MuseStore {
     }
     private func flush() {
         guard paired, canPersist, let relay else { return }
+        for edit in pendingRenames.values { try? relay.enqueueRename(edit) }
         for request in outbox {
             do {
                 let audio = audioFiles[request.id.uuidString].map { audioURL($0) }

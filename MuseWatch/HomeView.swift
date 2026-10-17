@@ -65,6 +65,7 @@ struct ChatsView: View {
     @Environment(MuseStore.self) private var store
     @State private var destination: ComposerRoute?
     @State private var deleting: Conversation?
+    @State private var renaming: Conversation?
     var body: some View {
         List {
             Button {
@@ -80,12 +81,15 @@ struct ChatsView: View {
                 }
                 .swipeActions(edge: .trailing, allowsFullSwipe: false) {
                     deleteButton(chat)
+                    Button { renaming = chat } label: { Label("Rename", systemImage: "pencil") }
+                        .tint(.blue).accessibilityIdentifier("renameWatchChat")
                     pinButton(chat)
                 }
             }
         }.navigationTitle("Chats")
         .watchEdgeBack()
         .navigationDestination(item: $destination) { route in ChatView(id: route.id) }
+        .sheet(item: $renaming) { chat in WatchRenameChatView(chatID: chat.id, initialTitle: chat.title) }
         .confirmationDialog("Delete chat from Watch?", isPresented: Binding(get: { deleting != nil }, set: { if !$0 { deleting = nil } }), titleVisibility: .visible, presenting: deleting) { chat in
             Button("Delete from Watch", role: .destructive) { store.deleteChat(chat.id); deleting = nil }
             Button("Cancel", role: .cancel) { deleting = nil }
@@ -104,6 +108,34 @@ struct ChatsView: View {
             else { deleting = chat }
         } label: { Label("Delete", systemImage: "trash") }
             .accessibilityIdentifier("deleteChat")
+    }
+}
+
+struct WatchRenameChatView: View {
+    let chatID: UUID
+    @Environment(MuseStore.self) private var store
+    @Environment(\.dismiss) private var dismiss
+    @State private var title: String
+    @State private var error: String?
+    init(chatID: UUID, initialTitle: String) { self.chatID = chatID; _title = State(initialValue: initialTitle) }
+    var body: some View {
+        NavigationStack {
+            Form {
+                TextField("Chat name", text: $title).autocorrectionDisabled().onSubmit { save() }
+                    .accessibilityIdentifier("watchChatNameField")
+                Button("Save name") { save() }.foregroundStyle(.white).buttonStyle(.borderedProminent)
+                    .disabled(title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || title.count > 80)
+                    .accessibilityIdentifier("saveWatchChatName")
+                if let error { Text(error).font(.caption2).foregroundStyle(.red) }
+                Text("Tap the name to dictate. Saves on Watch and syncs to iPhone when available.")
+                    .font(.caption2).foregroundStyle(MuseStyle.secondary)
+            }.navigationTitle("Rename chat")
+            .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } } }
+        }
+    }
+    private func save() {
+        if store.renameChat(chatID, title: title) { dismiss() }
+        else { error = store.error ?? "Couldn’t save this chat name."; store.error = nil }
     }
 }
 

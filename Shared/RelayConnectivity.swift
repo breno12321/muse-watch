@@ -14,6 +14,7 @@ final class RelayConnectivity: NSObject, WCSessionDelegate {
     var onAsset: ((String, URL, String) -> Void)?
     var onReplyAudio: ((ReplyAudioTransfer, URL) -> Void)?
     var onReplyAudioRequest: ((ReplyAudioRequest) -> Bool)?
+    var onRename: ((ChatRename) -> Bool)?
     private nonisolated let incoming: URL
     private var session: WCSession? { WCSession.isSupported() ? .default : nil }
     private var activated: Bool { session?.activationState == .activated }
@@ -151,6 +152,16 @@ final class RelayConnectivity: NSObject, WCSessionDelegate {
         }
         if canSendImmediately { session.sendMessage(["replyAudioRequest": metadata], replyHandler: { _ in }, errorHandler: { _ in }) }
     }
+    func enqueueRename(_ edit: ChatRename) throws {
+        try edit.validate()
+        guard activated, let session else { throw RelayError.invalid }
+        let bytes = try JSONEncoder().encode(edit)
+        if !session.outstandingUserInfoTransfers.contains(where: { transfer in
+            guard let data = transfer.userInfo["chatRename"] as? Data else { return false }
+            return (try? JSONDecoder().decode(ChatRename.self, from: data)) == edit
+        }) { session.transferUserInfo(["chatRename": bytes]) }
+        if canSendImmediately { session.sendMessage(["chatRename": bytes], replyHandler: { _ in }, errorHandler: { _ in }) }
+    }
     private func receiveSnapshot(_ data: Data) {
         guard data.count <= 2 * 1024 * 1024, let snapshot = try? JSONDecoder().decode(RelaySnapshot.self, from: data), snapshot.version == 1 else { return }
         onSnapshot?(snapshot)
@@ -162,6 +173,10 @@ final class RelayConnectivity: NSObject, WCSessionDelegate {
         Task { @MainActor in self.receiveSnapshot(data) }
     }
     nonisolated func session(_ session: WCSession, didReceiveUserInfo userInfo: [String: Any] = [:]) {
+        if let bytes = userInfo["chatRename"] as? Data, bytes.count < 20000,
+           let edit = try? JSONDecoder().decode(ChatRename.self, from: bytes) {
+            Task { @MainActor in _ = self.onRename?(edit) }; return
+        }
         if let bytes = userInfo["replyAudioRequest"] as? Data, bytes.count < 20000,
            let asset = try? JSONDecoder().decode(ReplyAudioRequest.self, from: bytes) {
             Task { @MainActor in _ = self.onReplyAudioRequest?(asset) }; return
@@ -175,6 +190,10 @@ final class RelayConnectivity: NSObject, WCSessionDelegate {
     }
     nonisolated func session(_ session: WCSession, didReceiveMessage message: [String: Any], replyHandler: @escaping ([String: Any]) -> Void) {
         let reply = ConnectivityReply(replyHandler)
+        if let bytes = message["chatRename"] as? Data, bytes.count < 20000,
+           let edit = try? JSONDecoder().decode(ChatRename.self, from: bytes) {
+            Task { @MainActor in reply.send(["renamed": self.onRename?(edit) ?? false]) }; return
+        }
         if let bytes = message["replyAudioRequest"] as? Data, bytes.count < 20000,
            let asset = try? JSONDecoder().decode(ReplyAudioRequest.self, from: bytes) {
             Task { @MainActor in reply.send(["queued": self.onReplyAudioRequest?(asset) ?? false]) }; return

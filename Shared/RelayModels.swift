@@ -66,7 +66,7 @@ public struct RelayRequest: Codable, Equatable, Sendable, Identifiable {
             guard hash.count == 64, hash.allSatisfy({ $0.isHexDigit }), let duration, duration.isFinite, duration >= 0.3, duration <= 61 else { throw RelayError.invalid }
         } else if duration != nil { throw RelayError.invalid }
         if let chat = newChat {
-            guard chat.id == chatID, !chat.exists, chat.serverTitle == nil, chat.customTitle == nil,
+            guard chat.id == chatID, !chat.exists, chat.serverTitle == nil, chat.customTitle == nil, chat.nameRevision == nil,
                   !chat.title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
                   chat.title.utf8.count <= 80, !chat.symbol.isEmpty, chat.symbol.utf8.count <= 80 else { throw RelayError.invalid }
         }
@@ -92,20 +92,56 @@ public struct RelayChat: Codable, Hashable, Sendable, Identifiable {
     public var exists: Bool
     public var serverTitle: String?
     public var customTitle: String?
+    public var nameRevision: Int?
     public var displayTitle: String { customTitle ?? serverTitle ?? title }
     public init(id: UUID = UUID(), title: String, symbol: String, exists: Bool = false) { self.id = id; self.title = title; self.symbol = symbol; self.exists = exists }
     public mutating func rename(_ name: String?) throws {
+        guard (nameRevision ?? 0) >= 0, (nameRevision ?? 0) < Int.max else { throw RelayError.invalid }
         let cleaned = name?.trimmingCharacters(in: .whitespacesAndNewlines)
         if let cleaned {
             guard !cleaned.isEmpty, cleaned.count <= 80, !cleaned.unicodeScalars.contains(where: { CharacterSet.controlCharacters.contains($0) }) else { throw RelayError.invalid }
         }
         customTitle = cleaned
+        nameRevision = (nameRevision ?? 0) + 1
     }
     public static func fresh(in chats: [RelayChat]) -> RelayChat {
         let titles = Set(chats.map(\.title))
         var number = 1
         while titles.contains("Chat \(number)") { number += 1 }
         return RelayChat(title: "Chat \(number)", symbol: "bubble.left.and.bubble.right")
+    }
+}
+/// Watch name edits are metadata only: they never become a user message or a Muse API request.
+public struct ChatRename: Codable, Equatable, Sendable {
+    public let account: String
+    public let chatID: UUID
+    public let title: String
+    public let revision: Int
+    public let newChat: RelayChat?
+    public init(account: String, chatID: UUID, title: String, revision: Int, newChat: RelayChat? = nil) {
+        self.account = account; self.chatID = chatID; self.title = title; self.revision = revision; self.newChat = newChat
+    }
+    public func validate() throws {
+        guard !account.isEmpty, account.utf8.count < 512, revision > 0, revision < Int.max else { throw RelayError.invalid }
+        var validation = RelayChat(title: "Chat", symbol: "bubble")
+        try validation.rename(title)
+        guard validation.customTitle == title else { throw RelayError.invalid }
+        if let chat = newChat {
+            guard chat.id == chatID, !chat.exists, chat.serverTitle == nil, chat.customTitle == nil, chat.nameRevision == nil,
+                  !chat.title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty, chat.title.utf8.count <= 80,
+                  !chat.symbol.isEmpty, chat.symbol.utf8.count <= 80 else { throw RelayError.invalid }
+        }
+    }
+    @discardableResult public func apply(to chats: inout [RelayChat], account expectedAccount: String) throws -> Bool {
+        try validate()
+        guard account == expectedAccount else { throw RelayError.invalid }
+        let index = chats.firstIndex { $0.id == chatID }
+        guard var chat = index.map({ chats[$0] }) ?? newChat else { throw RelayError.invalid }
+        // Duplicated/superseded transfers cannot overwrite newer edits. Concurrent phone edits win ties.
+        guard revision > (chat.nameRevision ?? 0) else { return false }
+        try chat.rename(title); chat.nameRevision = revision
+        if let index { chats[index] = chat } else { chats.append(chat) }
+        return true
     }
 }
 public struct RelayMessage: Codable, Equatable, Sendable, Identifiable {
