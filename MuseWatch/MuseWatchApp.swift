@@ -19,19 +19,9 @@ struct RootView: View {
     @Environment(MuseStore.self) private var store
     @Environment(AudioController.self) private var audio
     @Environment(\.scenePhase) private var phase
-    @State private var page = 0
-    @State private var handledLaunch = false
     var body: some View {
-        tabs
-        .task {
-            store.refresh()
-            #if DEBUG
-            if !handledLaunch {
-                handledLaunch = true
-                if ProcessInfo.processInfo.arguments.contains("--screen-goals") { page = 2 }
-            }
-            #endif
-        }
+        NavigationStack { HomeView() }
+        .task { store.refresh() }
         .onChange(of: audio.finishedDraft?.file) { _, _ in
             if let draft = audio.finishedDraft { store.keepDraft(draft); audio.finishedDraft = nil }
         }
@@ -46,14 +36,6 @@ struct RootView: View {
         .alert("A little heads-up", isPresented: Binding(get: { store.error != nil || audio.error != nil }, set: { if !$0 { store.error = nil; audio.error = nil } })) {
             Button("OK") { store.error = nil; audio.error = nil }
         } message: { Text(store.error ?? audio.error ?? "") }
-    }
-    private var tabs: some View {
-        TabView(selection: $page) {
-            NavigationStack { HomeView() }.tag(0)
-            NavigationStack { ChatsView() }.tag(1)
-            NavigationStack { SectionsView() }.tag(2)
-        }
-        .tabViewStyle(.page)
     }
 }
 

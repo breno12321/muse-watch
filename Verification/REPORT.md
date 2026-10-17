@@ -4,7 +4,17 @@ Device screenshots and Bluetooth logs are kept locally and excluded from Git. Th
 
 **The live Muse Watch app is implemented and installed on the physical iPhone and Apple Watch. Real Watch text and microphone audio reached Muse, and real replies returned to both devices. A first message in a new Ideas conversation also completed and synced to the Watch.** Pairing, credential refresh, and reconnect were previously verified with this account. The older stages below are chronological records, superseded by the final results here.
 
-## Back navigation and publication preparation — latest update
+## Simplified Home and independent chats — latest update
+
+Home now has Voice note and Chats, with the Muse avatar and a settings gear. Chats offers New chat, and the iPhone conversation list has the same action. Existing conversations are retained. The selected chat persists and becomes the Home voice-note destination; an older draft retains its original destination. Saved messages moved into Settings.
+
+New Watch chats are saved locally. Their first durable message carries validated chat metadata so the phone can adopt the same UUID exactly once before submission. Existing sessions cannot be replaced by that metadata. Creating an empty chat sends nothing to Muse. Install matching phone/Watch versions for this feature.
+
+All 28 protocol tests and Watch model checks passed, including offline creation/first voice note, relaunch, snapshots before phone adoption, draft routing, deduplication, legacy archives/requests, and account isolation. Device and simulator Debug builds and the device Release build passed. Matching signed builds were installed and launched on both physical devices. On Watch, observed the two Home actions, an empty new chat, left-edge Back to the list, selected-chat persistence through update/relaunch, and a visible settings glyph. The iPhone New chat action was visible.
+
+No live messages were posted in this verification. The phone displayed `/chat/subscribe` HTTP 404 on launch; a fresh live first-message/reply exchange for this update is not verified. Previous successful live exchanges below are historical evidence. Content-free results: [simple-chat-results.json](simple-chat-results.json). Device captures remain local and ignored.
+
+## Back navigation and publication preparation — previous update
 
 Fixed the direct Debug chat launch so it pushes from a real Home screen, rather than using chat as a navigation root. Voice and Goals test destinations also retain real parents. The chat shows the native Back chevron. A deliberate rightward drag starting in the 24-point left edge dismisses chat, section details, or About; the custom recognizer is confined to that strip so center reading gestures are not intercepted. Parent gestures are disabled while chat presents its recording sheet.
 

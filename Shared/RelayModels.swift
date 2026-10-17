@@ -52,9 +52,11 @@ public struct RelayRequest: Codable, Equatable, Sendable, Identifiable {
     public let audioSHA256: String?
     public let duration: Double?
     public let createdAt: Date
-    public init(id: UUID = UUID(), account: String, chatID: UUID, text: String, audioSHA256: String? = nil, duration: Double? = nil, createdAt: Date = .now) {
+    public let newChat: RelayChat?
+    public init(id: UUID = UUID(), account: String, chatID: UUID, text: String, audioSHA256: String? = nil, duration: Double? = nil, createdAt: Date = .now, newChat: RelayChat? = nil) {
         self.id = id; self.account = account; self.chatID = chatID; self.text = text
         self.audioSHA256 = audioSHA256; self.duration = duration; self.createdAt = createdAt
+        self.newChat = newChat
     }
     public func validate() throws {
         guard !account.isEmpty, account.utf8.count < 512, text.utf8.count <= 16384,
@@ -63,6 +65,18 @@ public struct RelayRequest: Codable, Equatable, Sendable, Identifiable {
         if let hash = audioSHA256 {
             guard hash.count == 64, hash.allSatisfy({ $0.isHexDigit }), let duration, duration.isFinite, duration >= 0.3, duration <= 61 else { throw RelayError.invalid }
         } else if duration != nil { throw RelayError.invalid }
+        if let chat = newChat {
+            guard chat.id == chatID, !chat.exists,
+                  !chat.title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+                  chat.title.utf8.count <= 80, !chat.symbol.isEmpty, chat.symbol.utf8.count <= 80 else { throw RelayError.invalid }
+        }
+    }
+    /// First messages can introduce a Watch-created chat, but never replace an existing session.
+    public func chatToInsert(in chats: [RelayChat]) throws -> RelayChat? {
+        try validate()
+        if chats.contains(where: { $0.id == chatID }) { return nil }
+        guard let newChat else { throw RelayError.invalid }
+        return newChat
     }
 }
 public enum RelayError: LocalizedError {
@@ -71,12 +85,18 @@ public enum RelayError: LocalizedError {
         switch self { case .invalid: "This Watch request is invalid."; case .duplicate: "This request identifier was already used."; case .full: "The outbox is full. Open Muse on iPhone to finish sending." }
     }
 }
-public struct RelayChat: Codable, Equatable, Sendable, Identifiable {
+public struct RelayChat: Codable, Hashable, Sendable, Identifiable {
     public var id: UUID
     public var title: String
     public var symbol: String
     public var exists: Bool
     public init(id: UUID = UUID(), title: String, symbol: String, exists: Bool = false) { self.id = id; self.title = title; self.symbol = symbol; self.exists = exists }
+    public static func fresh(in chats: [RelayChat]) -> RelayChat {
+        let titles = Set(chats.map(\.title))
+        var number = 1
+        while titles.contains("Chat \(number)") { number += 1 }
+        return RelayChat(title: "Chat \(number)", symbol: "bubble.left.and.bubble.right")
+    }
 }
 public struct RelayMessage: Codable, Equatable, Sendable, Identifiable {
     public var id: String

@@ -4,6 +4,8 @@ struct ChatView: View {
     let id: UUID
     @Environment(MuseStore.self) private var store
     @State private var composer: ComposerRoute?
+    @State private var queuedChat: UUID?
+    @State private var destination: ComposerRoute?
     var body: some View {
         ScrollViewReader { proxy in
             ScrollView {
@@ -42,7 +44,13 @@ struct ChatView: View {
                     .accessibilityIdentifier("recordVoice")
             }
         }
-        .sheet(item: $composer) { route in ComposerView(conversationID: route.id) }
+        .sheet(item: $composer, onDismiss: {
+            if let target = queuedChat {
+                queuedChat = nil
+                if target != id { destination = ComposerRoute(id: target) }
+            }
+        }) { route in ComposerView(conversationID: route.id, onQueued: { queuedChat = $0 }) }
+        .navigationDestination(item: $destination) { route in ChatView(id: route.id) }
     }
 }
 
@@ -59,7 +67,7 @@ struct MessageBubble: View {
                 Button { store.toggleSaved(message.id, in: conversationID) } label: {
                     Image(systemName: message.saved ? "bookmark.fill" : "bookmark")
                         .font(.system(size: 12)).frame(width: 28, height: 28)
-                }.buttonStyle(.plain).accessibilityLabel(message.saved ? "Unsave message" : "Save message to Library")
+                }.buttonStyle(.plain).accessibilityLabel(message.saved ? "Unsave message" : "Save message to Saved messages")
             }.foregroundStyle(MuseStyle.secondary)
             if let file = message.audioFile {
                 Button { audio.play(file, url: store.audioURL(file)) } label: {

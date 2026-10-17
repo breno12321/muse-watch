@@ -47,6 +47,52 @@ import Foundation
         var other = snapshot; other.account = "another-account"; other.revision = 1; other.messages = []
         restored.receive(other)
         precondition(restored.savedMessages.isEmpty && restored.conversation(chat.id)?.messages.isEmpty == true)
+        // New chats and their first voice note survive offline sync races and relaunch.
+        let chatDirectory = directory.appendingPathComponent("NewChats")
+        let chats = MuseStore(directory: chatDirectory, connectivity: false)
+        chats.receive(snapshot)
+        let firstID = chats.createChat()!
+        precondition(firstID != chat.id && chats.conversation(firstID)?.messages.isEmpty == true)
+        let firstTitle = chats.conversation(firstID)!.title
+        try Data([0, 1]).write(to: chats.audioURL("new-chat.wav"))
+        chats.keepDraft(VoiceDraft(file: "new-chat.wav", duration: 2, conversationID: firstID))
+        let secondID = chats.createChat()!
+        precondition(firstID != secondID && chats.conversation(secondID)?.title != firstTitle)
+        precondition(chats.activeChatID == secondID && chats.voiceChatID == firstID) // Draft keeps its original destination.
+        let firstVoiceQueued = await chats.sendVoice()
+        precondition(firstVoiceQueued)
+        precondition(chats.activeChatID == firstID && chats.draft == nil)
+        var phoneBeforeAdoption = snapshot; phoneBeforeAdoption.revision = 2
+        chats.receive(phoneBeforeAdoption)
+        precondition(chats.conversation(firstID)?.messages.last?.delivery == .queued)
+        let relaunched = MuseStore(directory: chatDirectory, connectivity: false)
+        precondition(relaunched.activeChatID == firstID && relaunched.conversation(secondID) != nil)
+        struct PendingArchive: Decodable { let outbox: [RelayRequest] }
+        let archiveURL = chatDirectory.appendingPathComponent("muse-live-watch.json")
+        let queued = try JSONDecoder().decode(PendingArchive.self, from: Data(contentsOf: archiveURL)).outbox
+        precondition(queued.count == 1 && queued[0].chatID == firstID && queued[0].newChat?.id == firstID)
+        let introduction = try queued[0].chatToInsert(in: snapshot.chats)!
+        var phoneAfterAdoption = snapshot; phoneAfterAdoption.revision = 3
+        var acceptedChat = introduction; acceptedChat.exists = true
+        phoneAfterAdoption.chats.append(acceptedChat)
+        phoneAfterAdoption.messages.append(RelayMessage(id: queued[0].id.uuidString, requestID: queued[0].id, chatID: firstID, role: "user", text: "Voice note", delivery: .complete))
+        relaunched.receive(phoneAfterAdoption)
+        precondition(relaunched.conversations.filter { $0.id == firstID }.count == 1)
+        precondition(relaunched.conversation(firstID)?.messages.last?.audioFile == "new-chat.wav")
+        let followUpQueued = await relaunched.send("Continue the new chat", to: firstID)
+        precondition(followUpQueued)
+        let subsequent = try JSONDecoder().decode(PendingArchive.self, from: Data(contentsOf: archiveURL)).outbox
+        precondition(subsequent.count == 1 && subsequent[0].newChat == nil)
+        relaunched.read(chat.id)
+        precondition(MuseStore(directory: chatDirectory, connectivity: false).activeChatID == chat.id)
+        relaunched.receive(other)
+        precondition(relaunched.selectedChatID == nil && relaunched.conversation(firstID) == nil && relaunched.conversation(secondID) == nil)
+        // Existing installations can open their old archive before the new optional fields existed.
+        var legacy = try JSONSerialization.jsonObject(with: Data(contentsOf: archiveURL)) as! [String: Any]
+        legacy.removeValue(forKey: "localChats"); legacy.removeValue(forKey: "selectedChatID")
+        try JSONSerialization.data(withJSONObject: legacy).write(to: archiveURL)
+        precondition(MuseStore(directory: chatDirectory, connectivity: false).error == nil)
+        print("PASS: independent chats, offline first voice note, sync races, draft destination, selection, adoption, legacy archive and account isolation")
         let corrupted = directory.appendingPathComponent("muse-live-watch.json")
         let bad = Data("not json".utf8); try bad.write(to: corrupted)
         let broken = MuseStore(directory: directory, connectivity: false)

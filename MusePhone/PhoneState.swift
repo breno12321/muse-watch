@@ -86,7 +86,15 @@ final class PhoneState {
         listener = Task { [weak self] in await self?.listen() }
     }
     private func defaultChats(mainID: UUID = UUID()) -> [RelayChat] {
-        [RelayChat(id: mainID, title: museName, symbol: "bubble.left.and.bubble.right"), RelayChat(title: "Check-in", symbol: "sparkles"), RelayChat(title: "Ideas", symbol: "lightbulb"), RelayChat(title: "Goals", symbol: "checkmark.circle")]
+        [RelayChat(id: mainID, title: museName, symbol: "bubble.left.and.bubble.right")]
+    }
+    @discardableResult func createChat() -> RelayChat? {
+        guard paired, storageReady else { return nil }
+        let chat = RelayChat.fresh(in: chats)
+        chats.append(chat)
+        do { try persist() }
+        catch { chats.removeAll { $0.id == chat.id }; self.error = error.localizedDescription; return nil }
+        publish(); return chat
     }
     private func snapshot() -> RelaySnapshot {
         RelaySnapshot(account: credentialNodeID ?? "", revision: revision, paired: paired, status: status, museName: museName, personName: personName, avatarRevision: avatarRevision, chats: chats, messages: messages, updatedAt: .now)
@@ -139,13 +147,15 @@ final class PhoneState {
     }
     @discardableResult func receive(_ request: RelayRequest, audio: URL?) -> Bool {
         do {
-            guard paired, storageReady, request.account == credentialNodeID, chats.contains(where: { $0.id == request.chatID }) else { return false }
+            guard paired, storageReady, request.account == credentialNodeID else { return false }
+            let newChat = try request.chatToInsert(in: chats)
             if request.audioSHA256 != nil {
                 guard let audio else { return false }; try VoicePayload.validateWAV(Data(contentsOf: audio))
             }
             var updated = journal
             let inserted = try updated.receive(request)
             if inserted {
+                if let newChat { chats.append(newChat) }
                 journal = updated
                 messages.append(RelayMessage(id: request.id.uuidString, requestID: request.id, chatID: request.chatID, role: "user", text: request.audioSHA256 == nil ? request.text : (request.text.isEmpty ? "Voice note" : request.text), date: request.createdAt, duration: request.duration, delivery: .received))
                 do { try persist() } catch { storageReady = false; throw error } // No acknowledgement or submission until durable.

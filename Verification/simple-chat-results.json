@@ -1,0 +1,32 @@
+{
+  "date": "2026-10-17",
+  "protocolTestsPassed": 28,
+  "watchModelChecksPassed": true,
+  "signedDeviceBuildPassed": true,
+  "releaseDeviceBuildPassed": true,
+  "simulatorBuildPassed": true,
+  "installedOnPhoneAndWatch": true,
+  "observedOnPhysicalWatch": {
+    "homeVoiceNoteAndChatsActions": true,
+    "newChatOpenedEmpty": true,
+    "leftEdgeBackReturnedToChatList": true,
+    "selectedChatSurvivedUpdateAndRelaunch": true,
+    "settingsIconVisible": true
+  },
+  "observedOnPhysicalPhone": {
+    "newChatActionVisible": true,
+    "chatSubscriptionHTTP404DisplayedOnLaunch": true
+  },
+  "automatedCoverage": [
+    "distinct chat IDs and titles",
+    "validated first-message chat metadata",
+    "idempotent adoption preserves existing sessions",
+    "offline first voice note and sync before phone adoption",
+    "older draft retains its destination",
+    "selected conversation persists",
+    "legacy archives and requests decode",
+    "account change clears pending chats"
+  ],
+  "newLiveChatExchangeVerified": false,
+  "liveMessagesSentDuringThisCheck": 0
+}

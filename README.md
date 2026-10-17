@@ -14,11 +14,11 @@ The iPhone provides internet access. The Watch does not need its own Wi-Fi or ce
 
 1. Open **Muse Watch** on iPhone once after installation. Confirm your account is connected, then return to the Home screen. Avoid force-quitting the app.
 2. Open **Muse Watch** on your paired Apple Watch and wait for the chats to sync.
-3. Tap **Talk to Cal**. Recording starts immediately, with animated audio waves and a haptic. Allow microphone access on first use. An existing draft opens for review instead.
+3. Tap **Voice note**. Recording starts immediately, with animated audio waves and a haptic. The destination chat appears below the button. Allow microphone access on first use. An existing draft opens for review in its original chat instead.
 4. Tap **Stop recording**, optionally play it back, then **Send voice note**. The app opens that conversation automatically so you can follow delivery and read Muse’s reply.
-5. Swipe between **Home**, **Chats**, and **Your Muse**. Tap the microphone in a Watch chat’s navigation bar to record another note; the keyboard and bottom input bar are removed to make more room for replies. Use the bookmark button to save a message to Library. Typed messages remain available on iPhone.
+5. Tap **Chats** to reopen a conversation, or **New chat** to start a separate one. Opening a chat selects it for the next Home voice note. Tap its microphone to record another note; Watch input remains voice-only. **New chat** is also available on iPhone. Creating an empty chat sends nothing to Muse; the first message creates its server conversation.
 
-To leave a Watch chat, tap the top-left Back chevron or drag right from the left edge. Vertical scrolling and the Digital Crown still scroll messages. Recordings stop at 60 seconds. Unsent drafts and captured chat history survive a relaunch. Change the Muse name, your name, and avatar in the iPhone companion.
+To leave a Watch chat, tap the top-left Back chevron or drag right from the left edge. Vertical scrolling and the Digital Crown still scroll messages. The Home gear opens connection settings and **Saved messages**; tap the bookmark beside a message to save it there. Recordings stop at 60 seconds. Unsent drafts, new chats, and the selected conversation survive a relaunch, including while offline. Change the Muse name, your name, and avatar in the iPhone companion.
 
 **Background delivery:** a real Watch recording and reply completed with the iPhone on its Home screen. Longer replies can exceed iOS background time; open Muse Watch on iPhone and keep it open for those. If a reply already finished while disconnected, read it in official Muse. See [delivery states](#delivery-states-and-background-behavior).
 
@@ -216,7 +216,7 @@ Local data includes conversations, bookmarks, recordings, and recoverable drafts
 ## Current scope
 
 - **History:** conversations captured by this companion, with a compact recent Watch mirror and fuller local history transferred on sync. Earlier iOS account history is not imported through an undocumented API.
-- **Check-in, Ideas, Goals:** real dedicated conversations with Muse, not copies of the iOS section databases. Library contains local Watch bookmarks.
+- **Conversations:** Home has Voice note and Chats. Start independent chats on either device; previous conversations, including older Check-in/Ideas/Goals chats, remain in the chat list. Saved messages are local Watch bookmarks under Settings. The iOS section databases are not imported.
 - **Avatar:** choose a picture manually on iPhone. Automatic account-avatar retrieval is not documented by the referenced SDK. The default Cal artwork is a personal reference asset from the installed Muse app, separate from the SDK license.
 - **Connectivity:** this implementation requires the paired iPhone. It is not a standalone cellular Watch client.
 - **Distribution:** a development-signed personal app, not an App Store/TestFlight distribution. Simulators and the browser preview do not prove real-device pairing or background behavior.
@@ -233,7 +233,7 @@ swift test
 ./scripts/test.sh
 ```
 
-`swift test` covers authentication/crypto fixtures, message correlation, WAV payloads, durable deduplication, recovery, and bounded immediate audio assembly. `scripts/test.sh` checks the Watch model’s queue, draft, history, and bookmark behavior. Neither command needs an SDK token or sends messages to Muse. The latest run passed **25 protocol tests** and the Watch model checks.
+`swift test` covers authentication/crypto fixtures, message correlation, WAV payloads, durable deduplication, recovery, bounded immediate audio assembly, and first-message chat adoption. `scripts/test.sh` also checks offline chat creation, selected-chat persistence, draft destinations, sync races, and old archive compatibility. Neither command needs an SDK token or sends messages to Muse. The latest run passed **28 protocol tests** and the Watch model checks.
 
 To compile both device targets without installing or signing:
 
@@ -244,7 +244,7 @@ xcodebuild -project MuseWatch.xcodeproj -scheme MusePhone \
   CODE_SIGNING_ALLOWED=NO build
 ```
 
-Signing and physical installation still use Xcode as described above. If you add Swift source files, run `python3 scripts/generate_project.py`; it rebuilds the project’s file list and embedded Watch dependency while preserving the selected team in the ignored `Configuration/Local.xcconfig`. Bundle identifiers are defined in that script, so update it too if using your own identifiers. Debug arguments `--screen-chat`, `--screen-voice`, and `--screen-goals` select screens within the normal navigation hierarchy, so Back always leads to a real parent; the voice screen starts real recording when no draft exists. They do not fabricate replies or send messages by themselves.
+Signing and physical installation still use Xcode as described above. If you add Swift source files, run `python3 scripts/generate_project.py`; it rebuilds the project’s file list and embedded Watch dependency while preserving the selected team in the ignored `Configuration/Local.xcconfig`. Bundle identifiers are defined in that script, so update it too if using your own identifiers. Debug arguments `--screen-chat`, `--screen-voice`, and `--screen-chats` select screens within the normal navigation hierarchy, so Back always leads to a real parent; the voice screen starts real recording when no draft exists. They do not fabricate replies or send messages by themselves. Install matching iPhone and Watch updates to enable Watch-created conversations.
 
 Implementation lessons worth preserving:
 

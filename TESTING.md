@@ -6,17 +6,17 @@ The iPhone companion and paired Watch app are named **Muse Watch**. The iPhone i
 
 1. Open Muse Watch on iPhone. Your current pairing is retained in Keychain; the screen should say **Ready for your Watch**.
 2. Open Muse Watch on the paired Apple Watch. Wait for its chats to sync. The avatar, names, and chats remain cached offline.
-3. Tap **Talk to Cal**. Recording starts immediately after microphone permission, with moving audio waves and a start haptic. Tap **Stop recording**, review or play back the note, then **Send voice note**. Home opens the correct chat automatically after the recording is safely queued. An existing draft opens for review instead of being overwritten.
+3. Tap **Voice note**. Recording starts immediately after microphone permission, with moving audio waves and a start haptic. Check the destination shown below the button. Tap **Stop recording**, review or play back the note, then **Send voice note**. Home opens the correct chat automatically after the recording is safely queued. An existing draft keeps its original destination and opens for review instead of being overwritten.
 4. Open the conversation to follow **Waiting for iPhone → On iPhone → Sending → Sent / waiting for Muse** and read the real response.
-5. Watch chats use voice input only. Tap the microphone in the navigation bar to record; no keyboard or bottom input bar covers the conversation. The bookmark beside a message saves it to **Your Muse → Library**. Type messages in the iPhone companion if needed.
-6. **Your Muse → Check-in / Ideas / Goals** offers a real conversation with Muse about that topic. **Ask Cal** sends the prompt shown by that section's purpose; voice notes can continue the same conversation.
+5. Watch chats use voice input only. Tap the microphone in the navigation bar to record; no keyboard or bottom input bar covers the conversation. The bookmark beside a message saves it to **Home gear → Saved messages**. Type messages in the iPhone companion if needed.
+6. Open **Chats → New chat**, then use the microphone. Confirm the first note and reply belong to the new chat and the previous chat keeps its history. Go back Home: Voice note now targets the chat you last opened. Try **New chat** on iPhone too, then sync the Watch. Empty chats remain local until their first message; this action alone sends no prompt.
 7. On iPhone, edit the Muse name/your name, tap **Save names**, or choose a Muse avatar image. Sync the Watch to transfer the change.
 
-Leave chat with the top-left Back chevron or a rightward drag starting at the left edge. Swipes starting in the middle and ordinary vertical scrolling do not trigger Back. The same edge gesture works on section details and Connection & about.
+Leave chat with the top-left Back chevron or a rightward drag starting at the left edge. Swipes starting in the middle and ordinary vertical scrolling do not trigger Back. The same edge gesture works on Chats, Settings, and Saved messages.
 
 Muse replies display Markdown headings, emphasis, lists, links, quotes, code, and tables. On Watch, table rows stack vertically for readability.
 
-These sections do not claim to download the iOS app's section databases. The companion captures its own conversations and replies; earlier account history is not imported by an undocumented API.
+Older section conversations remain available in Chats. The companion captures its own conversations and replies; earlier account history is not imported by an undocumented API.
 
 ## Background and interrupted delivery
 
@@ -59,5 +59,7 @@ swift test
 ```
 
 Protocol tests cover independent SDK crypto fixtures, token/envelope boundaries, chat correlation, the real empty-parent reply shape, WAV upload schema, duplicate delivery, crash recovery, snapshot size limits, and reply-listening recovery. Watch model checks cover offline queue persistence, real cached replies, bookmarks, missing recordings, account changes, stale snapshots, and corrupt-file preservation.
+
+New-chat checks cover independent IDs, validated first-message metadata, idempotent phone adoption without replacing an existing session, offline voice-note destinations, relaunch, sync races before phone adoption, legacy archives/requests, and account isolation. For a device check, briefly disconnect the Watch from its phone, create a chat and record a note, then reconnect; verify it appears once on iPhone and gets a reply in its own conversation. Keep an older draft while opening a different chat and confirm it is still sent to its original destination. Automated tests exercise these cases without live account posts.
 
 See [Verification/REPORT.md](Verification/REPORT.md) for physical-device results. Synthetic tests alone do not establish end-to-end account compatibility.

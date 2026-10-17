@@ -23,6 +23,7 @@ struct PhoneView: View {
     @State private var setup = false
     @State private var disconnect = false
     @State private var photo: PhotosPickerItem?
+    @State private var newChat: RelayChat?
     var body: some View {
         @Bindable var state = state
         NavigationStack {
@@ -44,6 +45,10 @@ struct PhoneView: View {
                 }
                 if state.paired {
                     Section("Conversations") {
+                        Button {
+                            newChat = state.createChat()
+                        } label: { Label("New chat", systemImage: "plus.bubble") }
+                            .accessibilityIdentifier("newChat")
                         ForEach(state.chats) { chat in NavigationLink { PhoneChatView(chat: chat) } label: { Label(chat.title, systemImage: chat.symbol) } }
                     }
                     Section("Your Watch") {
@@ -56,7 +61,7 @@ struct PhoneView: View {
                     Section {
                         Text("Text and voice notes travel through your nearby iPhone to Muse. Recent conversations stay readable on your Watch offline.")
                         Text("You can leave this app on your iPhone’s Home screen. Avoid swiping it away. For a longer reply, reopen it so Muse can keep replying.").foregroundStyle(.secondary)
-                        Text("Check-in, Ideas and Goals are conversations with Muse. Saved messages form your Watch Library. Full account history and iOS section databases aren’t exposed by the gadget SDK.").foregroundStyle(.secondary)
+                        Text("Start a new chat here or on your Watch. Existing conversations stay available. Find saved Watch messages in Settings → Saved messages.").foregroundStyle(.secondary)
                     }.font(.footnote)
                     Section("Connection") {
                         Button("Renew Muse connection") { Task { await state.testRefresh() } }.disabled(state.busy)
@@ -64,6 +69,7 @@ struct PhoneView: View {
                     }
                 }
             }.navigationTitle("Muse Watch")
+            .navigationDestination(item: $newChat) { chat in PhoneChatView(chat: chat) }
             .sheet(isPresented: $setup) { SetupView() }
             .onChange(of: photo) { _, selected in Task {
                 do { if let data = try await selected?.loadTransferable(type: Data.self) { try state.chooseAvatar(data) } }
@@ -81,6 +87,10 @@ struct PhoneChatView: View {
     @State private var text = ""
     var body: some View {
         List {
+            if !state.messages.contains(where: { $0.chatID == chat.id }) {
+                Text("Start a new conversation with \(state.museName). You can also send a voice note from your Watch.")
+                    .foregroundStyle(.secondary)
+            }
             ForEach(state.messages.filter { $0.chatID == chat.id }) { message in
                 VStack(alignment: .leading, spacing: 6) {
                     Text(message.role == "user" ? "YOU" : state.museName.uppercased()).font(.caption2).foregroundStyle(.secondary)

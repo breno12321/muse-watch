@@ -3,6 +3,42 @@ import CryptoKit
 @testable import MuseCore
 
 final class RelayTests: XCTestCase {
+    func testFirstMessageIntroducesAnIndependentChatWithoutReplacingExistingSessions() throws {
+        let existing = RelayChat(title: "Muse", symbol: "bubble", exists: true)
+        let first = RelayChat.fresh(in: [existing])
+        let second = RelayChat.fresh(in: [existing, first])
+        XCTAssertNotEqual(first.id, second.id)
+        XCTAssertNotEqual(first.title, second.title)
+        let request = RelayRequest(account: "test-account", chatID: first.id, text: "A new conversation", newChat: first)
+        let transferred = try JSONDecoder().decode(RelayRequest.self, from: JSONEncoder().encode(request))
+        XCTAssertEqual(try transferred.chatToInsert(in: [existing]), first)
+        var adopted = first; adopted.exists = true
+        XCTAssertNil(try transferred.chatToInsert(in: [existing, adopted]))
+        var journal = RelayJournal()
+        XCTAssertTrue(try journal.receive(transferred))
+        XCTAssertFalse(try journal.receive(transferred))
+        XCTAssertEqual(journal.entries.count, 1)
+    }
+    func testChatIntroductionRejectsWrongIDsExistingSessionClaimsAndInvalidTitles() throws {
+        let chat = RelayChat.fresh(in: [])
+        XCTAssertThrowsError(try RelayRequest(account: "test", chatID: UUID(), text: "Hello", newChat: chat).validate())
+        var invalid = chat; invalid.exists = true
+        XCTAssertThrowsError(try RelayRequest(account: "test", chatID: chat.id, text: "Hello", newChat: invalid).validate())
+        invalid = chat; invalid.title = "  "
+        XCTAssertThrowsError(try RelayRequest(account: "test", chatID: chat.id, text: "Hello", newChat: invalid).validate())
+        invalid.title = String(repeating: "a", count: 81)
+        XCTAssertThrowsError(try RelayRequest(account: "test", chatID: chat.id, text: "Hello", newChat: invalid).validate())
+    }
+    func testLegacyRequestsRemainValidOnlyForKnownChats() throws {
+        let chat = RelayChat(title: "Existing", symbol: "bubble", exists: true)
+        let request = RelayRequest(account: "test", chatID: chat.id, text: "Continue")
+        var object = try XCTUnwrap(JSONSerialization.jsonObject(with: JSONEncoder().encode(request)) as? [String: Any])
+        object.removeValue(forKey: "newChat")
+        let oldRequest = try JSONDecoder().decode(RelayRequest.self, from: JSONSerialization.data(withJSONObject: object))
+        XCTAssertNil(oldRequest.newChat)
+        XCTAssertNil(try oldRequest.chatToInsert(in: [chat]))
+        XCTAssertThrowsError(try oldRequest.chatToInsert(in: []))
+    }
     func testImmediateAudioIsCompleteAndVerifiedBeforeSubmission() throws {
         let audio = wav(seconds: 4)
         let hash = SHA256.hash(data: audio).map { String(format: "%02x", $0) }.joined()

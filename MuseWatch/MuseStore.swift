@@ -15,16 +15,19 @@ final class MuseStore {
     var connectionStatus = "Open Muse Watch on your iPhone"
     var lastSynced: Date?
     var avatarVersion = UUID()
+    private(set) var selectedChatID: UUID?
     private let directory: URL
     private let file: URL
     private let relay: RelayConnectivity?
     private var snapshot: RelaySnapshot?
     private var outbox: [RelayRequest] = []
+    private var localChats: [RelayChat] = []
     private var bookmarks = Set<String>()
     private var audioFiles: [String: String] = [:]
     private var canPersist = true
     private struct Saved: Codable {
         var snapshot: RelaySnapshot?; var outbox: [RelayRequest]; var bookmarks: Set<String>; var audioFiles: [String: String]; var draft: VoiceDraft?
+        var localChats: [RelayChat]?; var selectedChatID: UUID?
     }
     init(directory: URL? = nil, connectivity: Bool = true) {
         self.directory = directory ?? FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
@@ -35,6 +38,7 @@ final class MuseStore {
             if FileManager.default.fileExists(atPath: file.path) {
                 let saved = try JSONDecoder().decode(Saved.self, from: Data(contentsOf: file))
                 snapshot = saved.snapshot; outbox = saved.outbox; bookmarks = saved.bookmarks; audioFiles = saved.audioFiles; draft = saved.draft
+                localChats = saved.localChats ?? []; selectedChatID = saved.selectedChatID
                 rebuild()
             }
         } catch { canPersist = false; self.error = "Your saved Watch history could not be opened. It has been preserved." }
@@ -51,6 +55,11 @@ final class MuseStore {
         }
     }
     var mainID: UUID? { conversations.first?.id }
+    var activeChatID: UUID? {
+        if let selectedChatID, conversation(selectedChatID) != nil { return selectedChatID }
+        return mainID
+    }
+    var voiceChatID: UUID? { draft?.conversationID ?? activeChatID }
     var savedMessages: [Message] { conversations.flatMap(\.messages).filter(\.saved) }
     var sending: Set<UUID> { Set(conversations.filter { $0.messages.contains { $0.role == .user && $0.delivery?.terminal == false } }.map(\.id)) }
     var avatarURL: URL { directory.appendingPathComponent("muse-avatar.jpg") }
@@ -62,12 +71,14 @@ final class MuseStore {
         if let old = snapshot, old.account == value.account, value.revision < old.revision { return }
         if let old = snapshot, !old.account.isEmpty, old.account != value.account, !value.account.isEmpty {
             try? FileManager.default.copyItem(at: file, to: directory.appendingPathComponent("previous-account-\(UUID().uuidString).json"))
-            outbox = []; bookmarks = []; audioFiles = [:]; draft = nil; snapshot = nil
+            outbox = []; bookmarks = []; audioFiles = [:]; draft = nil; snapshot = nil; localChats = []; selectedChatID = nil
             try? FileManager.default.removeItem(at: avatarURL); avatarVersion = UUID()
         }
         var incoming = value
+        localChats.removeAll { chat in value.chats.contains(where: { $0.id == chat.id }) }
+        incoming.chats += localChats
         let present = Set(incoming.messages.map(\.id))
-        incoming.messages += (snapshot?.messages ?? []).filter { message in !present.contains(message.id) && value.chats.contains(where: { $0.id == message.chatID }) }
+        incoming.messages += (snapshot?.messages ?? []).filter { message in !present.contains(message.id) && incoming.chats.contains(where: { $0.id == message.chatID }) }
         incoming.messages.sort { $0.date < $1.date }
         snapshot = incoming
         let receivedIDs = Set(value.messages.compactMap(\.requestID))
@@ -89,9 +100,24 @@ final class MuseStore {
     }
     private func save() throws {
         guard canPersist else { throw RelayError.invalid }
-        try JSONEncoder().encode(Saved(snapshot: snapshot, outbox: outbox, bookmarks: bookmarks, audioFiles: audioFiles, draft: draft)).write(to: file, options: [.atomic, .completeFileProtectionUntilFirstUserAuthentication])
+        try JSONEncoder().encode(Saved(snapshot: snapshot, outbox: outbox, bookmarks: bookmarks, audioFiles: audioFiles, draft: draft, localChats: localChats, selectedChatID: selectedChatID)).write(to: file, options: [.atomic, .completeFileProtectionUntilFirstUserAuthentication])
     }
-    func read(_ id: UUID) {}
+    func read(_ id: UUID) {
+        guard conversation(id) != nil, selectedChatID != id else { return }
+        selectedChatID = id; persist()
+    }
+    @discardableResult func createChat() -> UUID? {
+        guard var value = snapshot, paired, canPersist else { return nil }
+        let chat = RelayChat.fresh(in: value.chats)
+        let old = snapshot, oldSelection = selectedChatID
+        value.chats.append(chat); snapshot = value; localChats.append(chat); selectedChatID = chat.id
+        do { try save() }
+        catch {
+            snapshot = old; selectedChatID = oldSelection; localChats.removeAll { $0.id == chat.id }
+            self.error = "Couldn’t save a new chat. \(error.localizedDescription)"; return nil
+        }
+        rebuild(); return chat.id
+    }
     func toggleSaved(_ messageID: String, in conversationID: UUID) {
         if bookmarks.contains(messageID) { bookmarks.remove(messageID) } else { bookmarks.insert(messageID) }
         rebuild(); persist()
@@ -116,14 +142,14 @@ final class MuseStore {
     private func enqueue(text: String, chatID: UUID, audioHash: String? = nil, duration: Double? = nil, audioFile: String? = nil) throws -> Bool {
         guard var value = snapshot, value.paired, canPersist, value.chats.contains(where: { $0.id == chatID }) else { throw RelayError.invalid }
         guard outbox.count < 20 else { throw RelayError.full }
-        let request = RelayRequest(account: value.account, chatID: chatID, text: text, audioSHA256: audioHash, duration: duration)
+        let request = RelayRequest(account: value.account, chatID: chatID, text: text, audioSHA256: audioHash, duration: duration, newChat: localChats.first { $0.id == chatID })
         try request.validate()
         value.messages.append(RelayMessage(id: request.id.uuidString, requestID: request.id, chatID: chatID, role: "user", text: audioFile == nil ? text : "Voice note", date: request.createdAt, duration: duration, delivery: .queued))
-        let old = snapshot; let oldDraft = draft
-        snapshot = value; outbox.append(request)
+        let old = snapshot; let oldDraft = draft; let oldSelection = selectedChatID
+        snapshot = value; outbox.append(request); selectedChatID = chatID
         if let audioFile { audioFiles[request.id.uuidString] = audioFile; draft = nil }
         do { try save() }
-        catch { snapshot = old; draft = oldDraft; outbox.removeAll { $0.id == request.id }; audioFiles.removeValue(forKey: request.id.uuidString); throw error }
+        catch { snapshot = old; draft = oldDraft; selectedChatID = oldSelection; outbox.removeAll { $0.id == request.id }; audioFiles.removeValue(forKey: request.id.uuidString); throw error }
         rebuild(); flush(); return true
     }
     private func flush() {
