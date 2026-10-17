@@ -1,0 +1,59 @@
+{
+  "verifiedOn": "2026-10-17",
+  "physicalPhoneAndWatch": true,
+  "requests": [
+    {
+      "kind": "text",
+      "voiceSeconds": null,
+      "delivery": "complete",
+      "museAcknowledged": true,
+      "phoneReplyCount": 1,
+      "watchReplyCount": 1,
+      "replyMatches": true
+    },
+    {
+      "kind": "voice",
+      "voiceSeconds": 4.407625,
+      "delivery": "complete",
+      "museAcknowledged": true,
+      "phoneReplyCount": 1,
+      "watchReplyCount": 1,
+      "replyMatches": true
+    },
+    {
+      "kind": "voice",
+      "voiceSeconds": 3.5160625,
+      "delivery": "replyUnavailable",
+      "museAcknowledged": true,
+      "phoneReplyCount": 0,
+      "watchReplyCount": 0,
+      "replyMatches": null
+    },
+    {
+      "kind": "text",
+      "voiceSeconds": null,
+      "delivery": "replyUnavailable",
+      "museAcknowledged": true,
+      "phoneReplyCount": 0,
+      "watchReplyCount": 0,
+      "replyMatches": null
+    },
+    {
+      "kind": "text",
+      "voiceSeconds": null,
+      "delivery": "complete",
+      "museAcknowledged": true,
+      "phoneReplyCount": 1,
+      "watchReplyCount": 1,
+      "replyMatches": true
+    }
+  ],
+  "watchOutboxCount": 0,
+  "protocolTests": {
+    "passed": 17,
+    "failed": 0
+  },
+  "backgroundMuseAcknowledgementVerified": true,
+  "backgroundFullReplyVerified": false,
+  "scope": "Companion-captured chats; dedicated section conversations; manually selected avatar; no full account history API"
+}

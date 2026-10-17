@@ -1,0 +1,20 @@
+{
+  "verifiedOn": "2026-10-17",
+  "physicalDevices": true,
+  "formattedTurnComplete": true,
+  "phoneReplyCount": 1,
+  "watchReplyCount": 1,
+  "matchingMarkdown": true,
+  "headingObserved": true,
+  "emphasisObserved": true,
+  "listObserved": true,
+  "tableObservedOnPhone": true,
+  "stackedTableObservedOnWatch": true,
+  "watchTextFieldRemoved": true,
+  "watchBottomInputBarRemoved": true,
+  "iphoneMuseLogoIcon": true,
+  "protocolTestsPassed": 25,
+  "protocolTestsFailed": 0,
+  "whiteWatchMicrophoneObserved": true,
+  "iphoneIconObservedOnHomeScreen": true
+}

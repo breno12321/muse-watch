@@ -1,0 +1,18 @@
+{
+  "verifiedOn": "2026-10-17",
+  "physicalDevices": true,
+  "oneTapRecordingObserved": true,
+  "waveformFramesDiffer": true,
+  "homeSendOpenedChat": true,
+  "phoneStayedOnHomeScreen": true,
+  "voiceDurationSeconds": 7.0896875,
+  "delivery": "complete",
+  "museAcknowledged": true,
+  "phoneReplyCount": 1,
+  "watchReplyCount": 1,
+  "matchingReply": true,
+  "watchOutboxCount": 0,
+  "protocolTestsPassed": 19,
+  "protocolTestsFailed": 0,
+  "longBackgroundRepliesGuaranteed": false
+}

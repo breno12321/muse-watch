@@ -1,0 +1,2 @@
+// Personal signing settings belong in the ignored Local.xcconfig, not this file.
+#include? "Local.xcconfig"

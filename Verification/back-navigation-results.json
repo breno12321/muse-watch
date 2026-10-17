@@ -1,0 +1,12 @@
+{
+  "verifiedOn": "2026-10-17",
+  "visibleNativeBackButton": true,
+  "leftEdgeSwipeReturnedFromChatToHome": true,
+  "debugChatHasRealHomeParent": true,
+  "debugVoicePresentedFromHome": true,
+  "debugGoalsHasSectionListParent": true,
+  "edgeHitAreaPoints": 24,
+  "centerDragDoesNotAttachBackGesture": true,
+  "physicalWatchUpdated": true,
+  "note": "Back and left-edge return were observed on the physical Watch; extended mirrored scrolling checks were interrupted when the phone disconnected."
+}
