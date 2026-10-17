@@ -94,6 +94,11 @@ public struct RelayChat: Codable, Hashable, Sendable, Identifiable {
     public var customTitle: String?
     public var nameRevision: Int?
     public var displayTitle: String { customTitle ?? serverTitle ?? title }
+    /// Exact title/symbol pairs seeded by the original prototype, not Muse account sections.
+    public var isLegacyStarter: Bool {
+        guard customTitle == nil, serverTitle == nil else { return false }
+        return ["Check-in": "sparkles", "Ideas": "lightbulb", "Goals": "checkmark.circle"][title] == symbol
+    }
     public init(id: UUID = UUID(), title: String, symbol: String, exists: Bool = false) { self.id = id; self.title = title; self.symbol = symbol; self.exists = exists }
     public mutating func rename(_ name: String?) throws {
         guard (nameRevision ?? 0) >= 0, (nameRevision ?? 0) < Int.max else { throw RelayError.invalid }
@@ -188,7 +193,9 @@ public struct JournalEntry: Codable, Sendable, Identifiable {
     public var delivery: Delivery
     public var acceptedID: String?
     public var detail: String?
+    public var recoveryStopped: Bool?
     public var id: UUID { request.id }
+    public var canRecoverReply: Bool { delivery == .replyUnavailable && acceptedID != nil && recoveryStopped != true }
 }
 public struct RelayJournal: Codable, Sendable {
     public var entries: [JournalEntry] = []
@@ -208,5 +215,9 @@ public struct RelayJournal: Codable, Sendable {
         }
         for i in entries.indices where entries[i].delivery == .uncertain && entries[i].acceptedID != nil { entries[i].delivery = .replyUnavailable }
         for i in entries.indices where entries[i].delivery == .connecting { entries[i].delivery = entries[i].acceptedID == nil ? .received : .replyUnavailable }
+    }
+    public mutating func stopReplyRecovery(_ id: UUID, detail: String) {
+        guard let index = entries.firstIndex(where: { $0.id == id }), entries[index].acceptedID != nil else { return }
+        entries[index].recoveryStopped = true; entries[index].delivery = .replyUnavailable; entries[index].detail = detail
     }
 }

@@ -7,7 +7,7 @@ public enum MuseClientEvent: Sendable {
     case reply(id: String, text: String, done: Bool)
     case replyAudio(id: String, data: Data?)
     case topic(sessionID: String, title: String)
-    case failure(String)
+    case failure(MuseError)
     case finished
 }
 public actor MuseClient {
@@ -33,6 +33,7 @@ public actor MuseClient {
     private var audioWorker: Task<Void, Never>?
     private var audioQueue: [String] = []
     private var requestedAudio = Set<String>()
+    private var resumingSavedReply = false
     private var registration: CheckedContinuation<Void, Error>?
     private var subscription: CheckedContinuation<Void, Error>?
     private var timeoutTasks: [Task<Void, Never>] = []
@@ -54,6 +55,7 @@ public actor MuseClient {
         guard !connecting else { throw MuseError.network("A connection attempt is already running.") }
         await disconnect(); connecting = true; defer { connecting = false }
         self.credentialAccount = credentialAccount
+        resumingSavedReply = resumeAcceptedMessageID != nil
         try value.validate(); self.credentials = value; self.sessionID = sessionID
         if let id = resumeAcceptedMessageID {
             guard existingChat else { throw MuseError.invalid("A saved reply requires an existing conversation.") }
@@ -92,7 +94,7 @@ public actor MuseClient {
             sink.yield(.status("Registering the paired device…"))
             try await registerDevice()
             sink.yield(.status("Subscribing to your Muse chat…"))
-            if subscribeToChat { try await subscribe(sessionID: existingChat ? sessionID : nil) }
+            if subscribeToChat { try await subscribe(sessionID: existingChat ? sessionID : nil, allowUnscopedFallback: resumeAcceptedMessageID == nil) }
             sink.yield(.status("Connected to Muse"))
             if resumeAcceptedMessageID != nil {
                 let id = turnID
@@ -144,6 +146,7 @@ public actor MuseClient {
         for value in pending.values { value.continuation.resume(throwing: reason) }; pending = [:]
         controlBuffer = Data(); eventBuffer = Data(); turn = nil; activeTurn = false
         retiredStreams = []; controlID = 0; subscriptionID = 0; subscribedSessionID = nil
+        resumingSavedReply = false
     }
     private func write(_ frames: [Data]) async throws {
         guard let socket else { throw MuseError.interrupted }
@@ -169,7 +172,7 @@ public actor MuseClient {
             })
         }
     }
-    private func subscribe(sessionID targetSession: String? = nil) async throws {
+    private func subscribe(sessionID targetSession: String? = nil, allowUnscopedFallback: Bool = true) async throws {
         guard let transport else { throw MuseError.interrupted }
         // The new side chat is created by the first /chat/stream request. The
         // SDK permits an unscoped subscription before it exists; correlation
@@ -180,9 +183,17 @@ public actor MuseClient {
         let request = try transport.request(path: "/chat/subscribe", body: jsonData(body), headers: [("Content-Type", "application/json"), ("Accept", "application/x-ndjson")])
         eventBuffer = Data()
         subscriptionID = request.id; subscribedSessionID = targetSession
-        try await withCheckedThrowingContinuation { continuation in
-            subscription = continuation
-            timeoutTasks.append(Task { [weak self] in do { try await self?.write(request.frames) } catch { await self?.fail(error) } })
+        do {
+            try await withCheckedThrowingContinuation { continuation in
+                subscription = continuation
+                timeoutTasks.append(Task { [weak self] in do { try await self?.write(request.frames) } catch { await self?.fail(error) } })
+            }
+        } catch MuseError.conversationUnavailable where allowUnscopedFallback && targetSession != nil {
+            sink.yield(.diagnostic("Scoped subscription unavailable; opening live event stream"))
+            try await write(transport.reset(stream: request.id))
+            try await subscribe(sessionID: nil, allowUnscopedFallback: false)
+            if old != 0 { try await write(transport.reset(stream: old)) }
+            return
         }
         // Open the new listener before closing the old stream.
         if old != 0 { try await write(transport.reset(stream: old)) }
@@ -240,7 +251,7 @@ public actor MuseClient {
     }
     private func expireReply(_ epoch: UUID, turnID: UUID) async {
         guard epoch == connectionID, turnID == self.turnID, activeTurn else { return }
-        await fail(MuseError.network("Muse accepted the message, but no completed reply arrived. Open the conversation in Muse. No automatic resend."))
+        await fail(resumingSavedReply ? MuseError.savedReplyUnavailable : MuseError.network("Muse accepted the message, but no completed reply arrived. Open the conversation in Muse. No automatic resend."))
     }
     private func readLoop(_ epoch: UUID) async {
         do {
@@ -255,7 +266,7 @@ public actor MuseClient {
         let reason = (error as? MuseError) ?? .network("Encrypted Muse connection closed (network error \((error as NSError).code)).")
         await disconnect(reason: reason)
         // Do not surface remote response bodies or authorization headers in UI/logs.
-        sink.yield(.failure(reason.localizedDescription))
+        sink.yield(.failure(reason))
     }
     private func process(_ packet: ServicePacket) throws {
         if retiredStreams.contains(packet.streamID) { return }
@@ -274,6 +285,14 @@ public actor MuseClient {
             return
         }
         if packet.status == 401 || packet.status == 403 { throw MuseError.rejectedCredentials }
+        if packet.streamID == subscriptionID,
+           let issue = MuseError.subscriptionError(status: packet.status, scoped: subscribedSessionID != nil),
+           issue == .conversationUnavailable, let continuation = subscription {
+            // A missing saved chat is a scoped failure, not an account/authentication failure.
+            subscription = nil; retiredStreams.insert(packet.streamID)
+            continuation.resume(throwing: issue)
+            return
+        }
         let streamName = packet.streamID == controlID ? "device registration (/link-control)" : (packet.streamID == subscriptionID ? "chat subscription (/chat/subscribe)" : "message request")
         if packet.kind == 5 { throw MuseError.network("Muse reset the \(streamName) stream.") }
         if packet.status >= 400 { throw MuseError.network("Muse \(streamName) returned HTTP \(packet.status).") }

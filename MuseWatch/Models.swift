@@ -20,6 +20,7 @@ struct Conversation: Identifiable, Equatable {
     var symbol: String
     var messages: [Message]
     var unread = false
+    var earlier = false
 }
 struct VoiceDraft: Codable {
     let file: String

@@ -4,8 +4,14 @@ import Foundation
 import CryptoKit
 import Security
 
-public enum MuseError: LocalizedError, Equatable {
-    case invalid(String), expiredSetup, rejectedCredentials, network(String), interrupted
+public enum MuseError: LocalizedError, Equatable, Sendable {
+    case invalid(String), expiredSetup, rejectedCredentials, network(String), interrupted, conversationUnavailable, savedReplyUnavailable
+    public var isSavedReplyUnavailable: Bool { self == .conversationUnavailable || self == .savedReplyUnavailable }
+    public static func subscriptionError(status: UInt64, scoped: Bool) -> MuseError? {
+        if status == 401 || status == 403 { return .rejectedCredentials }
+        if status == 404, scoped { return .conversationUnavailable }
+        return status >= 400 ? .network("Muse chat subscription returned HTTP \(status).") : nil
+    }
     public var errorDescription: String? {
         switch self {
         case .invalid(let reason): return reason
@@ -13,6 +19,8 @@ public enum MuseError: LocalizedError, Equatable {
         case .rejectedCredentials: return "Muse rejected this connection. Pair again using the official Muse app."
         case .network(let reason): return reason
         case .interrupted: return "The connection was interrupted. Delivery may be uncertain."
+        case .conversationUnavailable: return "Muse could not reopen this saved conversation. Read its earlier replies in Muse."
+        case .savedReplyUnavailable: return "The earlier reply could not be recovered. Read it in Muse; your message will not be resent."
         }
     }
 }

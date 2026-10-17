@@ -65,15 +65,21 @@ final class MuseStore {
             } catch { self.error = "Couldn’t save your Muse avatar." }
         }
     }
-    var mainID: UUID? { conversations.first?.id }
+    private var listedChats: [Conversation] {
+        let pendingChats = sending.union(outbox.map(\.chatID))
+        return conversations.filter { chat in
+            !chat.earlier || draft?.conversationID == chat.id || pendingChats.contains(chat.id)
+        }
+    }
+    var mainID: UUID? { listedChats.first?.id }
     var activeChatID: UUID? {
-        if let selectedChatID, conversation(selectedChatID) != nil { return selectedChatID }
+        if let selectedChatID, listedChats.contains(where: { $0.id == selectedChatID }) { return selectedChatID }
         return mainID
     }
     var voiceChatID: UUID? { draft?.conversationID ?? activeChatID }
     var savedMessages: [Message] { conversations.flatMap(\.messages).filter(\.saved) }
     var orderedChats: [Conversation] {
-        conversations.sorted {
+        listedChats.sorted {
             if isPinned($0.id) != isPinned($1.id) { return isPinned($0.id) }
             if ($0.id == activeChatID) != ($1.id == activeChatID) { return $0.id == activeChatID }
             let firstDate = $0.messages.last?.date ?? .distantPast
@@ -121,7 +127,7 @@ final class MuseStore {
                 let asset = value.replyAudio.flatMap { replyAudioFiles[$0.id.uuidString] }
                 let cached = value.role == "muse" && asset?.account == snapshot.account && asset?.chatID == chat.id && asset?.messageID == value.id && asset?.audio == value.replyAudio && asset.map { FileManager.default.fileExists(atPath: audioURL($0.audio.filename).path) } == true
                 return Message(id: value.id, role: value.role == "user" ? .user : .muse, text: value.text, date: value.date, audioFile: value.role == "user" ? value.requestID.flatMap { audioFiles[$0.uuidString] } : (cached ? value.replyAudio?.filename : nil), duration: value.role == "muse" ? value.replyAudio?.duration : value.duration, saved: bookmarks.contains(value.id), delivery: value.delivery, detail: value.detail, replyAudio: value.replyAudio, replyAudioState: value.replyAudio == nil ? value.replyAudioState : (cached ? .ready : .preparing))
-            })
+            }, earlier: chat.isLegacyStarter && pendingRenames[chat.id] == nil)
         }
     }
     func persist() {

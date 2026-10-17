@@ -99,6 +99,8 @@ final class PhoneState {
     private func defaultChats(mainID: UUID = UUID()) -> [RelayChat] {
         [RelayChat(id: mainID, title: museName, symbol: "bubble.left.and.bubble.right")]
     }
+    var visibleChats: [RelayChat] { chats.filter { !$0.isLegacyStarter } }
+    var earlierChats: [RelayChat] { chats.filter(\.isLegacyStarter) }
     @discardableResult func createChat() -> RelayChat? {
         guard paired, storageReady else { return nil }
         let chat = RelayChat.fresh(in: chats)
@@ -177,8 +179,12 @@ final class PhoneState {
             case .finished:
                 if let id = activeRequest { setDelivery(id, .complete) }
                 activeRequest = nil; status = "Ready for your Watch"; changed()
-            case .failure(let message):
+            case .failure(let issue):
                 if fetchingAudioOnly { continue }
+                if issue.isSavedReplyUnavailable, let id = activeRequest {
+                    stopUnavailableRecovery(id, issue: issue); continue
+                }
+                let message = issue.localizedDescription
                 if let id = activeRequest, let entry = journal.entries.first(where: { $0.id == id }) {
                     for index in messages.indices where messages[index].requestID == id && messages[index].replyAudioState == .preparing { messages[index].replyAudioState = .unavailable }
                     let submitted = entry.acceptedID != nil || [.sending, .accepted].contains(entry.delivery)
@@ -222,16 +228,22 @@ final class PhoneState {
         if let i = messages.firstIndex(where: { $0.id == entry.id.uuidString }) { messages[i].delivery = entry.delivery; messages[i].detail = entry.detail }
     }
     func retryConnection() { error = nil; attemptedRecoveries = []; queueRecoveries(); startProcessing(); publish() }
+    var unavailableReplyCount: Int { journal.entries.filter { $0.recoveryStopped == true }.count }
+    private func stopUnavailableRecovery(_ id: UUID, issue: MuseError) {
+        journal.stopReplyRecovery(id, detail: issue.localizedDescription)
+        if let entry = journal.entries.first(where: { $0.id == id }) { applyEntry(entry) }
+        activeRequest = nil; connected = false; error = nil; status = "Ready for your Watch"; changed()
+    }
     private func queueRecoveries() {
         for chat in chats {
-            if let last = journal.entries.last(where: { $0.request.chatID == chat.id }), last.delivery == .replyUnavailable, last.acceptedID != nil, !attemptedRecoveries.contains(last.id) { recoveryIDs.insert(last.id) }
+            if let last = journal.entries.last(where: { $0.request.chatID == chat.id }), last.canRecoverReply, !attemptedRecoveries.contains(last.id) { recoveryIDs.insert(last.id) }
         }
     }
     private var nextEntry: JournalEntry? {
-        journal.entries.first(where: { $0.delivery == .received }) ?? journal.entries.last(where: { $0.delivery == .replyUnavailable && recoveryIDs.contains($0.id) && !attemptedRecoveries.contains($0.id) })
+        journal.entries.first(where: { $0.delivery == .received }) ?? journal.entries.last(where: { $0.canRecoverReply && recoveryIDs.contains($0.id) && !attemptedRecoveries.contains($0.id) })
     }
     private func startProcessing() {
-        guard pump == nil, paired, storageReady, nextEntry != nil || !audioRequests.isEmpty else { return }
+        guard pump == nil, !busy, paired, storageReady, nextEntry != nil || !audioRequests.isEmpty else { return }
         // Acquire execution time before leaving the WatchConnectivity callback.
         audioBackgroundExpired = false
         backgroundTask = UIApplication.shared.beginBackgroundTask(withName: "Muse Watch message") { [weak self] in Task { @MainActor in await self?.expireBackground() } }
@@ -272,8 +284,13 @@ final class PhoneState {
                 }
                 while activeRequest == request.id { try await Task.sleep(for: .milliseconds(200)) }
                 await client.disconnect(); connected = false; endBackground()
+                if journal.entries.first(where: { $0.id == request.id })?.recoveryStopped == true { continue }
                 if journal.entries.first(where: { $0.id == request.id })?.delivery != .complete { break }
             } catch {
+                if let issue = error as? MuseError, issue.isSavedReplyUnavailable, entry.acceptedID != nil {
+                    stopUnavailableRecovery(request.id, issue: issue)
+                    await client.disconnect(); continue
+                }
                 if let value = journal.entries.first(where: { $0.id == request.id }), !value.delivery.terminal {
                     let submitted = value.acceptedID != nil || [.sending, .accepted].contains(value.delivery)
                     setDelivery(request.id, submitted ? (value.acceptedID == nil ? .uncertain : .replyUnavailable) : .received, detail: submitted ? "Submission may have succeeded. Check Muse; this message will not be resent." : "Couldn’t connect. Open Muse on iPhone and tap Retry.")
@@ -396,6 +413,20 @@ final class PhoneState {
             let updated = try await MuseAPI.refresh(JSONDecoder().decode(DeviceCredentials.self, from: bytes))
             try SecureStore.save(JSONEncoder().encode(updated), account: "device-credentials"); status = "Connection renewed"; error = nil; publish()
         } catch { self.error = error.localizedDescription }
+    }
+    func testConnection() async {
+        guard paired, !busy, pump == nil else { return }
+        busy = true; status = "Checking Muse connection…"; error = nil; publish()
+        do {
+            guard let bytes = try SecureStore.read("device-credentials") else { throw MuseError.rejectedCredentials }
+            // Verify registration and the SDK's live, unscoped listener without creating a chat or posting a message.
+            try await client.connect(credentials: JSONDecoder().decode(DeviceCredentials.self, from: bytes), sessionID: chats.first?.id.uuidString.lowercased() ?? UUID().uuidString.lowercased())
+            status = "Connection checked · ready for your Watch"; error = nil
+        } catch {
+            self.error = error.localizedDescription; status = "Check your Muse connection"
+            if (error as? MuseError) == .rejectedCredentials { paired = false }
+        }
+        await client.disconnect(); connected = false; busy = false; publish(); startProcessing()
     }
     func disconnectPairing() async {
         guard !busy else { return }; await client.disconnect()

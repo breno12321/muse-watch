@@ -21,64 +21,126 @@ final class PhoneDelegate: NSObject, UIApplicationDelegate {
 struct PhoneView: View {
     @Environment(PhoneState.self) private var state
     @State private var setup = false
-    @State private var disconnect = false
-    @State private var photo: PhotosPickerItem?
     @State private var newChat: RelayChat?
+    @State private var settings = false
     var body: some View {
-        @Bindable var state = state
         NavigationStack {
             List {
                 Section {
-                    HStack(spacing: 16) {
-                        if let image = UIImage(contentsOfFile: state.avatarURL.path) { Image(uiImage: image).resizable().scaledToFill().frame(width: 64, height: 64).clipShape(Circle()) }
-                        else { Image("CalAvatar").resizable().scaledToFill().frame(width: 64, height: 64).clipShape(Circle()) }
+                    HStack(spacing: 14) {
+                        if let image = UIImage(contentsOfFile: state.avatarURL.path) {
+                            Image(uiImage: image).resizable().scaledToFill().frame(width: 52, height: 52).clipShape(Circle())
+                        } else { Image("CalAvatar").resizable().scaledToFill().frame(width: 52, height: 52).clipShape(Circle()) }
                         VStack(alignment: .leading, spacing: 5) {
                             Text(state.museName).font(.title2.bold())
-                            Label(state.status, systemImage: state.paired ? "checkmark.shield" : "lock").font(.caption).foregroundStyle(.secondary)
+                            Text(state.paired ? (state.watchReachable ? "Watch connected" : "Ready for your Watch") : "Connect your Muse")
+                                .font(.caption).foregroundStyle(.secondary)
                         }
-                    }.padding(.vertical, 8)
-                    if let error = state.error { Text(error).font(.callout).foregroundStyle(.red).textSelection(.enabled) }
-                    if state.paired {
-                        Label(state.watchReachable ? "Watch connected" : "Watch updates when available", systemImage: "applewatch")
-                        Button("Sync Watch & retry connection") { state.becameActive(); state.retryConnection() }.disabled(state.busy)
-                    } else { Button("Connect your Muse") { setup = true } }
+                    }.padding(.vertical, 6)
+                    if !state.paired {
+                        Button("Connect your Muse") { setup = true }
+                    } else if state.error != nil {
+                        Button { settings = true } label: {
+                            Label("Connection needs attention", systemImage: "exclamationmark.circle")
+                        }.foregroundStyle(.orange)
+                    }
                 }
                 if state.paired {
-                    Section("Conversations") {
-                        Button {
-                            newChat = state.createChat()
-                        } label: { Label("New chat", systemImage: "plus.bubble") }
+                    Section("Chats") {
+                        Button { newChat = state.createChat() } label: { Label("New chat", systemImage: "plus.bubble") }
+                            .foregroundStyle(.white)
                             .accessibilityIdentifier("newChat")
-                        ForEach(state.chats) { chat in NavigationLink { PhoneChatView(chat: chat) } label: { Label(chat.displayTitle, systemImage: chat.symbol) } }
-                    }
-                    Section("Your Watch") {
-                        TextField("Muse name", text: $state.museName).onSubmit { state.updateProfile() }
-                        TextField("Your name", text: $state.personName).onSubmit { state.updateProfile() }
-                        Button("Save names") { state.updateProfile() }
-                        PhotosPicker(selection: $photo, matching: .images) { Label("Choose your Muse avatar", systemImage: "photo") }
-                        Text("Use a picture of your Muse. Avatar changes are sent to your Watch.").font(.caption).foregroundStyle(.secondary)
-                    }
-                    Section {
-                        Text("Text and voice notes travel through your nearby iPhone to Muse. Recent conversations stay readable on your Watch offline.")
-                        Text("You can leave this app on your iPhone’s Home screen. Avoid swiping it away. For a longer reply, reopen it so Muse can keep replying.").foregroundStyle(.secondary)
-                        Text("Start a new chat here or on your Watch. Existing conversations stay available. Find saved Watch messages in Settings → Saved messages.").foregroundStyle(.secondary)
-                    }.font(.footnote)
-                    Section("Connection") {
-                        Button("Renew Muse connection") { Task { await state.testRefresh() } }.disabled(state.busy)
-                        Button("Disconnect account", role: .destructive) { disconnect = true }.disabled(state.busy)
+                            .listRowBackground(chatBackground).listRowSeparator(.hidden)
+                        ForEach(state.visibleChats) { chat in
+                            NavigationLink { PhoneChatView(chat: chat) } label: {
+                                Label(chat.displayTitle, systemImage: chat.symbol).padding(.vertical, 6)
+                            }.listRowBackground(chatBackground).listRowSeparator(.hidden)
+                        }
                     }
                 }
-            }.navigationTitle("Muse Watch")
+            }.listStyle(.insetGrouped).listRowSpacing(8)
+            .navigationTitle("Muse Watch")
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button { settings = true } label: {
+                        Image(systemName: "gearshape").foregroundStyle(.white)
+                    }.accessibilityLabel("Settings").accessibilityIdentifier("phoneSettings")
+                }
+            }
             .navigationDestination(item: $newChat) { chat in PhoneChatView(chat: chat) }
+            .navigationDestination(isPresented: $settings) { PhoneSettingsView() }
             .sheet(isPresented: $setup) { SetupView() }
-            .onChange(of: photo) { _, selected in Task {
-                do { if let data = try await selected?.loadTransferable(type: Data.self) { try state.chooseAvatar(data) } }
-                catch { state.error = error.localizedDescription }
-            } }
-            .confirmationDialog("Disconnect your Muse account?", isPresented: $disconnect, titleVisibility: .visible) {
-                Button("Disconnect", role: .destructive) { Task { await state.disconnectPairing() } }
-            } message: { Text("Removes this iPhone’s credentials. You can revoke the gadget in official Muse too. Your local history is kept.") }
         }
+    }
+    private var chatBackground: some View {
+        RoundedRectangle(cornerRadius: 16, style: .continuous).fill(Color(uiColor: .secondarySystemGroupedBackground))
+    }
+}
+struct PhoneSettingsView: View {
+    @Environment(PhoneState.self) private var state
+    @State private var setup = false
+    @State private var disconnect = false
+    @State private var photo: PhotosPickerItem?
+    @State private var earlierChats = false
+    var body: some View {
+        @Bindable var state = state
+        Form {
+            Section("Connection") {
+                Label(state.status, systemImage: state.paired ? "checkmark.shield" : "lock")
+                if let error = state.error { Text(error).font(.callout).foregroundStyle(.red).textSelection(.enabled) }
+                if state.unavailableReplyCount > 0 {
+                    Text("Some earlier replies can’t be reopened. Read them in Muse. They won’t be resent or retried automatically.")
+                        .font(.caption).foregroundStyle(.secondary)
+                }
+                if state.paired {
+                    Label(state.watchReachable ? "Watch connected" : "Watch updates when available", systemImage: "applewatch")
+                    Button("Sync Watch & retry connection") { state.becameActive(); state.retryConnection() }.disabled(state.busy)
+                    Button("Check Muse connection") { Task { await state.testConnection() } }.disabled(state.busy)
+                    Button("Renew Muse connection") { Task { await state.testRefresh() } }.disabled(state.busy)
+                } else { Button("Connect your Muse") { setup = true } }
+            }
+            if state.paired {
+                Section("Your Muse") {
+                    TextField("Muse name", text: $state.museName).onSubmit { state.updateProfile() }
+                    TextField("Your name", text: $state.personName).onSubmit { state.updateProfile() }
+                    Button("Save names") { state.updateProfile() }
+                    PhotosPicker(selection: $photo, matching: .images) { Label("Choose your Muse avatar", systemImage: "photo") }
+                }
+                if !state.earlierChats.isEmpty {
+                    Section {
+                        Button { earlierChats = true } label: { Label("Earlier chats", systemImage: "archivebox") }
+                        Text("Conversations from the earlier prototype are kept here. Rename one to return it to your main chats.")
+                            .font(.caption).foregroundStyle(.secondary)
+                    }
+                }
+            }
+            Section {
+                Text("Voice notes from Watch use your iPhone’s internet. You can leave this app on the Home screen; avoid swiping it away. Open it for longer replies.")
+                Text("Create independent chats on either device. Saved Watch messages are under Watch Settings → Saved messages.")
+            }.font(.footnote).foregroundStyle(.secondary)
+            if state.paired {
+                Section {
+                    Button("Disconnect account", role: .destructive) { disconnect = true }.disabled(state.busy)
+                }
+            }
+        }.navigationTitle("Settings").navigationBarTitleDisplayMode(.inline)
+        .navigationDestination(isPresented: $earlierChats) { EarlierChatsView() }
+        .sheet(isPresented: $setup) { SetupView() }
+        .onChange(of: photo) { _, selected in Task {
+            do { if let data = try await selected?.loadTransferable(type: Data.self) { try state.chooseAvatar(data) } }
+            catch { state.error = error.localizedDescription }
+        } }
+        .confirmationDialog("Disconnect your Muse account?", isPresented: $disconnect, titleVisibility: .visible) {
+            Button("Disconnect", role: .destructive) { Task { await state.disconnectPairing() } }
+        } message: { Text("Removes this iPhone’s credentials. You can revoke the gadget in official Muse too. Your local history is kept.") }
+    }
+}
+struct EarlierChatsView: View {
+    @Environment(PhoneState.self) private var state
+    var body: some View {
+        List(state.earlierChats) { chat in
+            NavigationLink { PhoneChatView(chat: chat) } label: { Label(chat.displayTitle, systemImage: chat.symbol) }
+        }.navigationTitle("Earlier chats").navigationBarTitleDisplayMode(.inline)
     }
 }
 struct PhoneChatView: View {
@@ -120,9 +182,9 @@ struct PhoneChatView: View {
         .onDisappear { audio.stop() }
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
-                Button {
+                Button("Rename") {
                     renaming = state.chats.first(where: { $0.id == chat.id }) ?? chat
-                } label: { Image(systemName: "pencil") }
+                }.foregroundStyle(.white)
                     .accessibilityLabel("Edit chat name").accessibilityIdentifier("editChatName")
             }
         }

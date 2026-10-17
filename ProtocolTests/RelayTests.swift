@@ -3,6 +3,50 @@ import CryptoKit
 @testable import MuseCore
 
 final class RelayTests: XCTestCase {
+    func testOnlyScoped404IsAnUnavailableSavedConversation() {
+        XCTAssertEqual(MuseError.subscriptionError(status: 404, scoped: true), .conversationUnavailable)
+        XCTAssertFalse(MuseError.subscriptionError(status: 404, scoped: false)!.isSavedReplyUnavailable)
+        XCTAssertEqual(MuseError.subscriptionError(status: 401, scoped: true), .rejectedCredentials)
+        XCTAssertEqual(MuseError.subscriptionError(status: 403, scoped: false), .rejectedCredentials)
+        XCTAssertFalse(MuseError.subscriptionError(status: 503, scoped: true)!.isSavedReplyUnavailable)
+        XCTAssertNil(MuseError.subscriptionError(status: 200, scoped: true))
+    }
+    func testUnavailableSavedReplyStopsRecoveryAcrossRelaunchWithoutReposting() throws {
+        let request = RelayRequest(account: "test", chatID: UUID(), text: "Already accepted")
+        let next = RelayRequest(account: "test", chatID: UUID(), text: "Next request")
+        var journal = RelayJournal()
+        try journal.receive(request); try journal.receive(next)
+        journal.entries[0].acceptedID = "accepted-message"
+        journal.entries[0].delivery = .replyUnavailable
+        XCTAssertTrue(journal.entries[0].canRecoverReply)
+        journal.stopReplyRecovery(request.id, detail: MuseError.conversationUnavailable.localizedDescription)
+        var restored = try JSONDecoder().decode(RelayJournal.self, from: JSONEncoder().encode(journal))
+        restored.recoverInterrupted()
+        XCTAssertFalse(restored.entries[0].canRecoverReply)
+        XCTAssertEqual(restored.entries[0].acceptedID, "accepted-message")
+        XCTAssertEqual(restored.entries[0].delivery, .replyUnavailable)
+        XCTAssertEqual(restored.entries[1].delivery, .received)
+        XCTAssertFalse(try restored.receive(request))
+        XCTAssertEqual(restored.entries.count, 2)
+        // Older archives lack the optional stop marker and retain recoverable accepted replies.
+        var raw = try XCTUnwrap(JSONSerialization.jsonObject(with: JSONEncoder().encode(journal)) as? [String: Any])
+        var entries = raw["entries"] as! [[String: Any]]; entries[0].removeValue(forKey: "recoveryStopped"); raw["entries"] = entries
+        let legacy = try JSONDecoder().decode(RelayJournal.self, from: JSONSerialization.data(withJSONObject: raw))
+        XCTAssertTrue(legacy.entries[0].canRecoverReply)
+    }
+    func testOnlyUntitledOriginalStarterPairsLeaveTheMainChatList() throws {
+        for (title, symbol) in [("Check-in", "sparkles"), ("Ideas", "lightbulb"), ("Goals", "checkmark.circle")] {
+            var legacy = RelayChat(title: title, symbol: symbol, exists: true)
+            XCTAssertTrue(legacy.isLegacyStarter)
+            try legacy.rename("My \(title)")
+            XCTAssertFalse(legacy.isLegacyStarter)
+            var topic = RelayChat(title: title, symbol: symbol)
+            topic.serverTitle = "Actual conversation topic"
+            XCTAssertFalse(topic.isLegacyStarter)
+            XCTAssertFalse(RelayChat(title: title, symbol: "bubble.left.and.bubble.right").isLegacyStarter)
+        }
+        XCTAssertFalse(RelayChat(title: "Chat 1", symbol: "bubble.left.and.bubble.right").isLegacyStarter)
+    }
     func testFirstMessageIntroducesAnIndependentChatWithoutReplacingExistingSessions() throws {
         let existing = RelayChat(title: "Muse", symbol: "bubble", exists: true)
         let first = RelayChat.fresh(in: [existing])

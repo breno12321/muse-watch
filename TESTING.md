@@ -4,14 +4,14 @@
 
 The iPhone companion and paired Watch app are named **Muse Watch**. The iPhone icon uses the blue Muse mark with a burgundy audio badge. The old standalone **Muse** prototype may still have a separate icon. Use Muse Watch for live messaging.
 
-1. Open Muse Watch on iPhone. Your current pairing is retained in Keychain; the screen should say **Ready for your Watch**.
+1. Open Muse Watch on iPhone. Your current pairing is retained in Keychain; Home shows your Muse and chats; connection details are under the Settings gear.
 2. Open Muse Watch on the paired Apple Watch. Wait for its chats to sync. The avatar, names, and chats remain cached offline.
 3. Tap **Voice note**. Recording starts immediately after microphone permission, with moving audio waves and a start haptic. Check the destination shown below the button. Tap **Stop recording**, review or play back the note, then **Send voice note**. Home opens the correct chat automatically after the recording is safely queued. An existing draft keeps its original destination and opens for review instead of being overwritten.
 4. Open the conversation to follow **Waiting for iPhone → On iPhone → Sending → Sent / waiting for Muse** and read the real response.
 5. Watch chats use voice input only. Tap the microphone in the navigation bar to record; no keyboard or bottom input bar covers the conversation. The bookmark beside a message saves it to **Home gear → Saved messages**. Type messages in the iPhone companion if needed.
 6. Open **Chats → New chat**, then use the microphone. Confirm the first note and reply belong to the new chat and the previous chat keeps its history. Go back Home: Voice note now targets the chat you last opened. Try **New chat** on iPhone too, then sync the Watch. Empty chats remain local until their first message; this action alone sends no prompt.
-7. On iPhone, edit the Muse name/your name, tap **Save names**, or choose a Muse avatar image. Sync the Watch to transfer the change.
-8. On Watch, open **Chats**, swipe left on a row and tap the blue **Rename** pencil. Tap **Chat name**, dictate/edit it using the Watch system input, then **Save name**. Confirm it updates on iPhone. Repeat offline and after relaunch; the latest name should survive a stale phone snapshot and sync when reconnected. Renaming an empty Watch chat must adopt its metadata on iPhone without posting any Muse message. In the iPhone chat, tap the pencil, edit **Chat name**, and Save. Confirm the title updates on both devices and survives relaunch. A manual name should survive later server topic updates. Clear it with **Use Muse topic / Use default name** if desired.
+7. On iPhone, open the Settings gear to edit the Muse name/your name, tap **Save names**, or choose a Muse avatar image. Sync the Watch to transfer the change.
+8. On Watch, open **Chats**, swipe left on a row and tap the blue **Rename** pencil. Tap **Chat name**, dictate/edit it using the Watch system input, then **Save name**. Confirm it updates on iPhone. Repeat offline and after relaunch; the latest name should survive a stale phone snapshot and sync when reconnected. Renaming an empty Watch chat must adopt its metadata on iPhone without posting any Muse message. In the iPhone chat, tap **Rename**, edit **Chat name**, and Save. Confirm the title updates on both devices and survives relaunch. A manual name should survive later server topic updates. Clear it with **Use Muse topic / Use default name** if desired.
 9. After a voice reply arrives, tap **Play reply** on Watch, then pause/resume. Check playback progress and that its Markdown text remains readable. Replay the downloaded audio with iPhone unavailable. For an existing reply, **Get voice reply** attempts read-only MP3 retrieval without sending another message; **Sync voice reply** requests a missing Watch copy. A reply that has no voice stream must leave its text and delivery state intact.
 10. In Watch **Chats**, swipe right on a row to show **Pin / Unpin**; tap it and confirm pinned chats appear first with a pin symbol. Swipe left for the menu containing **Delete**, **Rename**, and **Pin / Unpin**. Tap Delete, then confirm **Delete from Watch** or Cancel. Use a new empty local chat for deletion checks; do not delete personal conversations merely to validate the UI. Check the removal survives sync/relaunch, iPhone history remains available, and Back/vertical scrolling still work. Chats with a draft or pending send must explain why deletion is blocked. If all chats are removed, Home should direct you to Chats → New chat.
 
@@ -19,7 +19,9 @@ Leave chat with the top-left Back chevron or a rightward drag starting at the le
 
 Muse replies display Markdown headings, emphasis, lists, links, quotes, code, and tables. On Watch, table rows stack vertically for readability.
 
-Older section conversations remain available in Chats. The companion captures its own conversations and replies; earlier account history is not imported by an undocumented API.
+Untouched prototype starter chats are under iPhone Settings → Earlier chats; their history remains readable. Renaming an earlier chat returns it to the main lists. A Watch draft or pending send keeps its destination visible. The companion captures its own conversations and replies; earlier account history is not imported by an undocumented API.
+
+Check rounded corners on Watch chat rows, including New chat, with swipe actions open and closed. On iPhone, Home should contain only Muse status and chats; profile, connection controls, help, and Earlier chats belong under the Settings gear. Inspect earlier history without sending test prompts or deleting conversations.
 
 ## Background and interrupted delivery
 
@@ -34,6 +36,10 @@ For a longer task, open Muse Watch on iPhone and leave it in the foreground. The
 - An acknowledged request whose reply was interrupted shows **Sent · open Muse for reply**. Reopening the iPhone can resume listening to a still-running turn without posting again. If the server already completed it, historical replay is not guaranteed; read that reply in official Muse.
 - Drafts, recordings, cached replies, and Watch bookmarks survive app relaunch. Corrupt local history is preserved rather than silently replaced.
 - Audio is cached before transfer. File arrival may precede chat metadata; it must attach only to the matching account, chat, and assistant message. Missing files offer sync, and failed/expired fetches offer retry. Older text-only replies may have no stream. Do not claim that a spinner or successful download proves audible playback; verify Play/Pause on the physical Watch and its available audio route.
+
+## Connection checks and unavailable saved replies
+
+In iPhone Settings, **Check Muse connection** registers and opens the SDK’s unscoped live listener, then disconnects. It must not create a chat or post a message. The check shares the existing client serially; incoming notes stay queued while it runs. A scoped subscription 404 for an accepted saved turn marks only that recovery unavailable and persists a stop marker, so relaunch/retry does not repeat it or block later notes. The Settings notice explains where to read earlier replies. Preserve authentication errors (401/403), live/unscoped subscription failures, and network errors as connection failures. For fresh sends, a scoped 404 may fall back once to the SDK’s live listener while reply correlation still rejects other chats/turns. Do not claim that this restores historical replies.
 
 ## Rebuild / install
 

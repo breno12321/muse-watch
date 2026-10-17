@@ -72,10 +72,11 @@ struct ChatsView: View {
                 if let id = store.createChat() { destination = ComposerRoute(id: id) }
             } label: { Label("New chat", systemImage: "plus.bubble") }
                 .disabled(!store.paired).accessibilityIdentifier("newChat")
+                .listRowBackground(RoundedRectangle(cornerRadius: 16, style: .continuous).fill(MuseStyle.bubble))
             ForEach(store.orderedChats) { chat in
                 NavigationLink { ChatView(id: chat.id) } label: {
                     MuseRow(title: chat.title, subtitle: chat.messages.last?.text ?? "Start with a voice note", symbol: store.isPinned(chat.id) ? "pin.fill" : chat.symbol)
-                }.listRowBackground(MuseStyle.bubble)
+                }.listRowBackground(RoundedRectangle(cornerRadius: 16, style: .continuous).fill(MuseStyle.bubble))
                 .swipeActions(edge: .leading, allowsFullSwipe: false) {
                     pinButton(chat)
                 }
