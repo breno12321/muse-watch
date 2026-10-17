@@ -27,7 +27,6 @@ final class PhoneState {
     var transcriptionAuthorized = VoiceTranscriber.authorized
     var transcriptionPermissionDenied = VoiceTranscriber.permissionDenied
     var transcriptionLocale = UserDefaults.standard.string(forKey: "voice-transcription-locale") ?? Locale.current.identifier
-    var askForVoiceNote = UserDefaults.standard.bool(forKey: "ask-for-voice-note")
     var chats: [RelayChat] = []
     var messages: [RelayMessage] = []
     var museName = "Cal"
@@ -168,7 +167,6 @@ final class PhoneState {
         if transcriptionAuthorized { retryVoiceNotes() }
     }
     func saveTranscriptionLocale() { UserDefaults.standard.set(transcriptionLocale, forKey: "voice-transcription-locale") }
-    func saveReplyPreference() { UserDefaults.standard.set(askForVoiceNote, forKey: "ask-for-voice-note") }
     func retryVoiceNotes() {
         journal.retryTranscriptions(); changed(); startProcessing()
     }
@@ -190,8 +188,7 @@ final class PhoneState {
                 guard let requestID = activeRequest, let entry = journal.entries.first(where: { $0.id == requestID }) else { continue }
                 if let index = messages.firstIndex(where: { $0.id == id }) { messages[index].text = text }
                 else { messages.append(RelayMessage(id: id, requestID: requestID, chatID: entry.request.chatID, role: "muse", text: text)) }
-                if done, let index = messages.firstIndex(where: { $0.id == id }), messages[index].replyAudioState == nil {
-                    if entry.voiceReply != false { messages[index].replyAudioState = .preparing }
+                if done {
                     recordAudioDiagnostic("Muse turn: reply text completed")
                 }
                 status = "\(museName) is replying…"; changed()
@@ -210,7 +207,6 @@ final class PhoneState {
                 var saved = reference
                 if let previous = audioPresentations[id], previous.path == reference.path { saved.accessDenied = previous.accessDenied }
                 audioPresentations[id] = saved; changed()
-                if saved.accessDenied != true { _ = requestReplyAudio(ReplyAudioRequest(account: credentialNodeID ?? "", chatID: entry.request.chatID, messageID: id)) }
             case .topic(let sessionID, let title):
                 guard let id = UUID(uuidString: sessionID), let index = chats.firstIndex(where: { $0.id == id }), chats[index].serverTitle != title else { continue }
                 chats[index].serverTitle = title; changed()
@@ -243,9 +239,9 @@ final class PhoneState {
             let inserted = try updated.receive(request)
             if inserted {
                 if let index = updated.entries.firstIndex(where: { $0.id == request.id }) {
-                    // Use the SDK's working text mode. Voice is an optional instruction, never a forced modality.
+                    // Request text only; preserve legacy audio preferences in older journal entries.
                     updated.entries[index].voiceReply = false
-                    updated.entries[index].askForVoiceNote = askForVoiceNote
+                    updated.entries[index].askForVoiceNote = false
                 }
                 if let newChat { chats.append(newChat) }
                 journal = updated
@@ -329,17 +325,17 @@ final class PhoneState {
                     recordAudioDiagnostic("Voice input: transcript saved")
                 }
                 guard let prepared = journal.entries.first(where: { $0.id == request.id }) else { throw RelayError.invalid }
-                let outgoingText = isRecovery ? "" : try prepared.outgoingText()
+                let outgoingText = isRecovery ? "" : try prepared.outgoingText(includeVoiceRequest: false)
                 setDelivery(request.id, isRecovery ? .accepted : .connecting); try persist(); publish()
                 guard let bytes = try SecureStore.read("device-credentials"), let chat = chats.first(where: { $0.id == request.chatID }) else { throw MuseError.rejectedCredentials }
                 let credentials = try JSONDecoder().decode(DeviceCredentials.self, from: bytes)
-                try await client.connect(credentials: credentials, sessionID: chat.id.uuidString.lowercased(), existingChat: chat.exists, resumeAcceptedMessageID: entry.acceptedID, voiceReply: prepared.voiceReply ?? true, waitForVoiceNote: prepared.askForVoiceNote == true)
+                try await client.connect(credentials: credentials, sessionID: chat.id.uuidString.lowercased(), existingChat: chat.exists, resumeAcceptedMessageID: entry.acceptedID, voiceReply: false, waitForVoiceNote: false)
                 guard activeRequest == request.id else { throw MuseError.interrupted }
                 connected = true
                 if !isRecovery {
                     setDelivery(request.id, .sending); try persist(); publish()
-                    recordAudioDiagnostic("Muse input: text only; attachments 0; \(prepared.voiceReply == false ? "text" : "voice") output requested")
-                    _ = try await client.sendText(outgoingText, voiceReply: prepared.voiceReply ?? true, waitForVoiceNote: prepared.askForVoiceNote == true)
+                    recordAudioDiagnostic("Muse input: text only; attachments 0; text output requested")
+                    _ = try await client.sendText(outgoingText, voiceReply: false, waitForVoiceNote: false)
                 }
                 while activeRequest == request.id { try await Task.sleep(for: .milliseconds(200)) }
                 await client.disconnect(); connected = false; endBackground()

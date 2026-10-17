@@ -202,11 +202,11 @@ public struct JournalEntry: Codable, Sendable, Identifiable {
     public var canRecoverReply: Bool { delivery == .replyUnavailable && acceptedID != nil && recoveryStopped != true }
     public var canPrepare: Bool { delivery == .received && acceptedID == nil && transcriptionBlocked != true }
     public static let voiceNoteInstruction = "If possible, also append a voice note reply. Always include your reply as text."
-    public func outgoingText() throws -> String {
+    public func outgoingText(includeVoiceRequest: Bool = false) throws -> String {
         // A voice caption is never a substitute for a completed transcription.
         let base = (request.audioSHA256 == nil ? request.text : transcript ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
         guard !base.isEmpty else { throw RelayError.invalid }
-        let value = askForVoiceNote == true ? base + "\n\n" + Self.voiceNoteInstruction : base
+        let value = includeVoiceRequest && askForVoiceNote == true ? base + "\n\n" + Self.voiceNoteInstruction : base
         guard value.utf8.count <= 16384 else { throw RelayError.invalid }
         return value
     }

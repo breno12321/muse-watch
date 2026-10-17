@@ -75,7 +75,7 @@ struct MessageBubble: View {
             if message.role == .user, message.audioFile != nil, message.text != "Voice note", !message.text.isEmpty {
                 Text(verbatim: message.text).font(.system(size: 15)).fixedSize(horizontal: false, vertical: true)
             }
-            if let file = message.audioFile {
+            if let file = message.audioFile, message.role == .user {
                 Button { audio.play(file, url: store.audioURL(file)) } label: {
                     HStack {
                         Image(systemName: audio.playingFile == file ? "pause.fill" : "play.fill")
@@ -92,24 +92,11 @@ struct MessageBubble: View {
                 }
             } else if message.role == .user {
                 Text(verbatim: message.text).font(.system(size: 15)).fixedSize(horizontal: false, vertical: true)
-            } else if message.replyAudio != nil {
-                Button { store.requestReplyAudio(message, in: conversationID) } label: {
-                    Label("Sync voice reply", systemImage: "arrow.down.circle").font(.caption)
-                }.buttonStyle(.plain).accessibilityIdentifier("syncMuseReply")
-            } else if message.replyAudioState == .preparing {
-                HStack { ProgressView().controlSize(.mini); Text("Preparing audio…").font(.caption2) }
-            } else if message.replyAudioState == .unavailable {
-                Text("Voice reply unavailable. Your text is saved.").font(.caption2).foregroundStyle(MuseStyle.secondary)
-                Button("Try audio again") { store.requestReplyAudio(message, in: conversationID) }.font(.caption2)
-            } else if message.role == .muse {
-                Button { store.requestReplyAudio(message, in: conversationID) } label: {
-                    Label("Get voice reply", systemImage: "speaker.wave.2").font(.caption)
-                }.buttonStyle(.plain)
             }
             if let delivery = message.delivery {
                 Text(delivery.label).font(.system(size: 10)).foregroundStyle(delivery == .uncertain || delivery == .failed ? .orange : MuseStyle.secondary)
             }
-            if let detail = message.detail { Text(detail).font(.system(size: 11)).foregroundStyle(.orange) }
+            if let detail = message.detail, message.role == .user { Text(detail).font(.system(size: 11)).foregroundStyle(.orange) }
             Text(message.date, style: .time).font(.system(size: 9)).foregroundStyle(MuseStyle.secondary)
         }.padding(11).frame(maxWidth: .infinity, alignment: .leading)
             .background(message.role == .user ? MuseStyle.userBubble : MuseStyle.bubble, in: RoundedRectangle(cornerRadius: 17))

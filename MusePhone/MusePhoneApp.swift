@@ -127,9 +127,7 @@ struct PhoneSettingsView: View {
                         Text("\(state.blockedVoiceNotes) saved voice note(s) waiting. Nothing was sent for these notes.").font(.caption)
                         Button("Retry saved voice notes") { state.retryVoiceNotes() }.disabled(state.busy || !state.transcriptionAuthorized)
                     }
-                    Toggle("Ask for a voice note", isOn: $state.askForVoiceNote)
-                        .onChange(of: state.askForVoiceNote) { _, _ in state.saveReplyPreference() }
-                    Text("Adds a request for a voice note alongside text to new messages. Muse may return text only; audio depends on Muse and its SDK.")
+                    Text("Your voice notes are transcribed on iPhone. Muse replies in text.")
                         .font(.caption).foregroundStyle(.secondary)
                 }
                 Section("Your Muse") {
@@ -179,7 +177,6 @@ struct PhoneChatView: View {
     let chat: RelayChat
     @Environment(PhoneState.self) private var state
     @State private var text = ""
-    @State private var audio = ReplyPlayer()
     @State private var renaming: RelayChat?
     var body: some View {
         List {
@@ -193,25 +190,11 @@ struct PhoneChatView: View {
                     if message.role == "muse" {
                         MuseRichText(text: message.text.isEmpty ? "Replying…" : message.text).textSelection(.enabled)
                     } else { Text(verbatim: message.text).textSelection(.enabled) }
-                    if let reply = message.replyAudio {
-                        Button { audio.toggle(reply, url: state.replyAudioURL(reply)) } label: {
-                            Label(audio.playingID == reply.id ? "Pause reply" : "Play reply · \(Int(reply.duration))s", systemImage: audio.playingID == reply.id ? "pause.fill" : "play.fill")
-                        }.accessibilityIdentifier("playMuseReply")
-                    } else if message.replyAudioState == .preparing {
-                        ProgressView("Preparing audio…").font(.caption)
-                    } else if message.replyAudioState == .unavailable {
-                        Text("Voice reply unavailable. Your text is saved.").font(.caption).foregroundStyle(.secondary)
-                        Button("Try audio again") { state.requestReplyAudio(for: message) }
-                    } else if message.role == "muse" {
-                        Button { state.requestReplyAudio(for: message) } label: { Label("Get voice reply", systemImage: "speaker.wave.2") }
-                    }
                     if let delivery = message.delivery { Text(delivery.label).font(.caption).foregroundStyle(.secondary) }
-                    if let detail = message.detail { Text(detail).font(.caption).foregroundStyle(.orange) }
+                    if let detail = message.detail, message.role == "user" { Text(detail).font(.caption).foregroundStyle(.orange) }
                 }.padding(.vertical, 5)
             }
-            if let error = audio.error { Text(error).font(.caption).foregroundStyle(.secondary) }
         }.navigationTitle(state.chats.first(where: { $0.id == chat.id })?.displayTitle ?? chat.displayTitle)
-        .onDisappear { audio.stop() }
         .toolbar {
             ToolbarItem(placement: .topBarTrailing) {
                 Button("Rename") {
