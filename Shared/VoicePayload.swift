@@ -24,6 +24,6 @@ public enum VoicePayload {
     }
     public static func body(_ data: Data, text: String, deviceID: String, sessionID: String) throws -> Data {
         try validateWAV(data)
-        return try jsonData(["message": text, "device_id": deviceID, "session_id": sessionID, "output_modality": "text", "items": [["type": "file", "mime_type": "audio/wav", "filename": "voice_note.wav", "data_base64": data.base64EncodedString()]]])
+        return try jsonData(["message": text, "device_id": deviceID, "session_id": sessionID, "output_modality": "voice", "items": [["type": "file", "mime_type": "audio/wav", "filename": "voice_note.wav", "data_base64": data.base64EncodedString()]]])
     }
 }

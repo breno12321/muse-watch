@@ -39,7 +39,7 @@ for name, sdk, platforms, family, deployment, bundle in specs:
         refs.append(ref); builds.append(obj(name+'-build-'+rel, f'isa = PBXBuildFile; fileRef = {ref};'))
     if True:
         for path, ref in zip(shared, shared_refs):
-            if name == 'MuseWatch' and path.name not in ['RelayModels.swift', 'RelayConnectivity.swift', 'MuseRichText.swift', 'MuseMarkdown.swift']: continue
+            if name == 'MuseWatch' and path.name not in ['RelayModels.swift', 'RelayConnectivity.swift', 'ReplyAudio.swift', 'MuseRichText.swift', 'MuseMarkdown.swift']: continue
             builds.append(obj(name+'-build-'+str(path.relative_to(root)), f'isa = PBXBuildFile; fileRef = {ref};'))
     if name in ['MuseWatch', 'MusePhone']:
         asset = obj(name+'-assets', 'isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>";')

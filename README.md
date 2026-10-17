@@ -15,10 +15,16 @@ The iPhone provides internet access. The Watch does not need its own Wi-Fi or ce
 1. Open **Muse Watch** on iPhone once after installation. Confirm your account is connected, then return to the Home screen. Avoid force-quitting the app.
 2. Open **Muse Watch** on your paired Apple Watch and wait for the chats to sync.
 3. Tap **Voice note**. Recording starts immediately, with animated audio waves and a haptic. The destination chat appears below the button. Allow microphone access on first use. An existing draft opens for review in its original chat instead.
-4. Tap **Stop recording**, optionally play it back, then **Send voice note**. The app opens that conversation automatically so you can follow delivery and read Muse’s reply.
+4. Tap **Stop recording**, optionally play it back, then **Send voice note**. The app opens that conversation automatically. Read Muse’s reply and tap **Play reply** to hear its audio on the Watch. Playback supports pause/resume and progress; downloaded replies stay available offline. Audio never plays automatically.
 5. Tap **Chats** to reopen a conversation, or **New chat** to start a separate one. Opening a chat selects it for the next Home voice note. Tap its microphone to record another note; Watch input remains voice-only. **New chat** is also available on iPhone. Creating an empty chat sends nothing to Muse; the first message creates its server conversation.
 
 To leave a Watch chat, tap the top-left Back chevron or drag right from the left edge. Vertical scrolling and the Digital Crown still scroll messages. The Home gear opens connection settings and **Saved messages**; tap the bookmark beside a message to save it there. Recordings stop at 60 seconds. Unsent drafts, new chats, and the selected conversation survive a relaunch, including while offline. Change the Muse name, your name, and avatar in the iPhone companion.
+
+**Chat names:** on iPhone, open a chat and tap the pencil (**Edit chat name**). Save a name of up to 80 characters; it syncs to the Watch and takes priority over subsequent server topic metadata. **Use Muse topic / Use default name** removes your override. The gadget SDK does not document a thread-title fetch API; scoped topic metadata is used when present, and manual naming remains available.
+
+**Older voice replies:** tap **Get voice reply** on either device to try Muse’s existing MP3 stream for that saved assistant message. This does not repost your note or require replaying the historical chat subscription. **Sync voice reply** copies an already cached phone reply to Watch. Some older text-only messages have no voice stream; text stays readable if audio is unavailable. Keep iPhone open for long downloads, and use the Watch’s available speaker/headphone route for playback.
+
+Watch playback uses Apple’s long-form audio routing: supported models can use the built-in speaker, while other models need a Bluetooth output. Speaker playback is unavailable while the Watch is charging. See [Apple’s Watch audio routing guidance](https://developer.apple.com/documentation/avfaudio/avaudiosession/activate(options:completionhandler:)).
 
 **Background delivery:** a real Watch recording and reply completed with the iPhone on its Home screen. Longer replies can exceed iOS background time; open Muse Watch on iPhone and keep it open for those. If a reply already finished while disconnected, read it in official Muse. See [delivery states](#delivery-states-and-background-behavior).
 
@@ -213,6 +219,8 @@ Muse replies render native Markdown: headings, emphasis, lists, links, quotes, c
 
 Local data includes conversations, bookmarks, recordings, and recoverable drafts. The native apps contain no sample conversations or scripted replies. Setup request/envelope files and recordings are excluded by `.gitignore`; keep account data and private test captures out of commits too.
 
+Reply audio is requested with the SDK’s voice modality and downloaded as bounded MP3 through the registered, encrypted iPhone connection (`/api/voice/tts-stream`, with the SDK’s legacy fallback). Complete files are decoded and saved before being transferred. Account/chat/message scope and SHA-256 are checked on Watch. Muse tokens and remote media URLs are never sent to Watch. A failed audio fetch leaves the reply text intact and cannot trigger a message resend.
+
 ## Current scope
 
 - **History:** conversations captured by this companion, with a compact recent Watch mirror and fuller local history transferred on sync. Earlier iOS account history is not imported through an undocumented API.
@@ -233,7 +241,7 @@ swift test
 ./scripts/test.sh
 ```
 
-`swift test` covers authentication/crypto fixtures, message correlation, WAV payloads, durable deduplication, recovery, bounded immediate audio assembly, and first-message chat adoption. `scripts/test.sh` also checks offline chat creation, selected-chat persistence, draft destinations, sync races, and old archive compatibility. Neither command needs an SDK token or sends messages to Muse. The latest run passed **28 protocol tests** and the Watch model checks.
+`swift test` covers authentication/crypto fixtures, message correlation, WAV payloads, durable deduplication, recovery, bounded immediate audio assembly, first-message chat adoption, reply-audio integrity/bounds, GET framing, scoped topic metadata, and editable names. `scripts/test.sh` also checks offline audio caching, file/snapshot ordering, account isolation, chat creation, selected-chat persistence, draft destinations, sync races, and old archive compatibility. Neither command needs an SDK token or sends messages to Muse. The latest run passed **35 protocol tests** and the Watch model checks.
 
 To compile both device targets without installing or signing:
 

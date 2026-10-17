@@ -2,6 +2,7 @@ import Foundation
 import Observation
 import CryptoKit
 import UIKit
+import AVFoundation
 
 @MainActor @Observable
 final class PhoneState {
@@ -47,6 +48,13 @@ final class PhoneState {
     private var listener: Task<Void, Never>?
     private var publishTask: Task<Void, Never>?
     private var backgroundTask: UIBackgroundTaskIdentifier = .invalid
+    private var audioRequests: [ReplyAudioRequest] = []
+    private var fetchingAudioOnly = false
+    private var activeAudioRequest: ReplyAudioRequest?
+    private var audioBackgroundExpired = false
+    #if DEBUG
+    private var audioDiagnostics: [String] = []
+    #endif
 
     init() {
         directory = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
@@ -67,6 +75,7 @@ final class PhoneState {
                 if saved.account == credentialNodeID {
                     revision = saved.revision; chats = saved.chats; messages = saved.messages; journal = saved.journal
                     museName = saved.museName; personName = saved.personName; avatarRevision = saved.avatarRevision
+                    for index in messages.indices where messages[index].replyAudioState == .preparing { messages[index].replyAudioState = .unavailable }
                     journal.recoverInterrupted()
                     for entry in journal.entries { applyEntry(entry) }
                 }
@@ -83,6 +92,7 @@ final class PhoneState {
         relay.onRequest = { [weak self] request, audio in self?.receive(request, audio: audio) ?? false }
         relay.onSync = { [weak self] assets in self?.publish(); if assets { self?.sendAssets() }; self?.startProcessing() }
         relay.onStatus = { [weak self] reachable in self?.watchReachable = reachable }
+        relay.onReplyAudioRequest = { [weak self] request in self?.requestReplyAudio(request) ?? false }
         listener = Task { [weak self] in await self?.listen() }
     }
     private func defaultChats(mainID: UUID = UUID()) -> [RelayChat] {
@@ -95,6 +105,15 @@ final class PhoneState {
         do { try persist() }
         catch { chats.removeAll { $0.id == chat.id }; self.error = error.localizedDescription; return nil }
         publish(); return chat
+    }
+    @discardableResult func renameChat(_ id: UUID, title: String?) -> Bool {
+        guard paired, storageReady, let index = chats.firstIndex(where: { $0.id == id }) else { return false }
+        let previous = chats[index]
+        do { try chats[index].rename(title) }
+        catch { self.error = "Choose a chat name between 1 and 80 characters."; return false }
+        do { try persist() }
+        catch { chats[index] = previous; self.error = "Couldn’t save the chat name."; return false }
+        publish(); return true
     }
     private func snapshot() -> RelaySnapshot {
         RelaySnapshot(account: credentialNodeID ?? "", revision: revision, paired: paired, status: status, museName: museName, personName: personName, avatarRevision: avatarRevision, chats: chats, messages: messages, updatedAt: .now)
@@ -122,22 +141,37 @@ final class PhoneState {
         for await event in client.events {
             switch event {
             case .status: if activeRequest != nil { status = "Connecting to Muse…" }
-            case .diagnostic: break
+            case .diagnostic(let value): if value.hasPrefix("Audio ") { recordAudioDiagnostic(value) }
             case .accepted(let session, let messageID):
                 guard let id = activeRequest, let index = journal.entries.firstIndex(where: { $0.id == id }), journal.entries[index].request.chatID.uuidString.lowercased() == session else { continue }
                 journal.entries[index].acceptedID = messageID
                 if let chat = chats.firstIndex(where: { $0.id == journal.entries[index].request.chatID }) { chats[chat].exists = true }
                 setDelivery(id, .accepted); status = "Waiting for \(museName)…"; changed()
-            case .reply(let id, let text, _):
+            case .reply(let id, let text, let done):
                 guard let requestID = activeRequest, let entry = journal.entries.first(where: { $0.id == requestID }) else { continue }
                 if let index = messages.firstIndex(where: { $0.id == id }) { messages[index].text = text }
                 else { messages.append(RelayMessage(id: id, requestID: requestID, chatID: entry.request.chatID, role: "muse", text: text)) }
+                if done, let index = messages.firstIndex(where: { $0.id == id }), messages[index].replyAudioState == nil { messages[index].replyAudioState = .preparing }
                 status = "\(museName) is replying…"; changed()
+            case .replyAudio(let id, let data):
+                guard let request = activeRequest, let entry = journal.entries.first(where: { $0.id == request }),
+                      let index = messages.firstIndex(where: { $0.id == id && $0.chatID == entry.request.chatID && $0.role == "muse" }) else { continue }
+                do {
+                    guard let data else { throw RelayError.invalid }
+                    try cacheReplyAudio(data, at: index)
+                } catch {
+                    messages[index].replyAudioState = .unavailable; changed()
+                }
+            case .topic(let sessionID, let title):
+                guard let id = UUID(uuidString: sessionID), let index = chats.firstIndex(where: { $0.id == id }), chats[index].serverTitle != title else { continue }
+                chats[index].serverTitle = title; changed()
             case .finished:
                 if let id = activeRequest { setDelivery(id, .complete) }
                 activeRequest = nil; status = "Ready for your Watch"; changed()
             case .failure(let message):
+                if fetchingAudioOnly { continue }
                 if let id = activeRequest, let entry = journal.entries.first(where: { $0.id == id }) {
+                    for index in messages.indices where messages[index].requestID == id && messages[index].replyAudioState == .preparing { messages[index].replyAudioState = .unavailable }
                     let submitted = entry.acceptedID != nil || [.sending, .accepted].contains(entry.delivery)
                     setDelivery(id, submitted ? (entry.acceptedID == nil ? .uncertain : .replyUnavailable) : .received, detail: submitted ? "Check this chat in Muse. It will not be resent. \(message)" : "Open Muse on iPhone to retry connecting. \(message)")
                 }
@@ -188,16 +222,21 @@ final class PhoneState {
         journal.entries.first(where: { $0.delivery == .received }) ?? journal.entries.last(where: { $0.delivery == .replyUnavailable && recoveryIDs.contains($0.id) && !attemptedRecoveries.contains($0.id) })
     }
     private func startProcessing() {
-        guard pump == nil, paired, storageReady, nextEntry != nil else { return }
+        guard pump == nil, paired, storageReady, nextEntry != nil || !audioRequests.isEmpty else { return }
         // Acquire execution time before leaving the WatchConnectivity callback.
+        audioBackgroundExpired = false
         backgroundTask = UIApplication.shared.beginBackgroundTask(withName: "Muse Watch message") { [weak self] in Task { @MainActor in await self?.expireBackground() } }
-        pump = Task { [weak self] in await self?.processQueue() }
+        pump = Task { [weak self] in
+            guard let self else { return }
+            if self.nextEntry != nil { await self.processQueue() }
+            else { await self.processAudioRequests() }
+        }
     }
     private func processQueue() async {
         busy = true
         defer {
             pump = nil; busy = false; monitoringRecovery = false; endBackground(); publish()
-            if restartAfterRecovery { restartAfterRecovery = false; Task { [weak self] in self?.startProcessing() } }
+            if restartAfterRecovery || (!audioRequests.isEmpty && nextEntry == nil) { restartAfterRecovery = false; Task { [weak self] in self?.startProcessing() } }
         }
         while let entry = nextEntry, paired, storageReady {
             let request = entry.request
@@ -239,7 +278,9 @@ final class PhoneState {
         }
     }
     private func expireBackground() async {
+        audioBackgroundExpired = true
         if let id = activeRequest, let entry = journal.entries.first(where: { $0.id == id }) {
+            for index in messages.indices where messages[index].requestID == id && messages[index].replyAudioState == .preparing { messages[index].replyAudioState = .unavailable }
             let submitted = entry.acceptedID != nil || [.sending, .accepted].contains(entry.delivery)
             setDelivery(id, submitted ? (entry.acceptedID == nil ? .uncertain : .replyUnavailable) : .received, detail: submitted ? "iPhone background time ended. Check Muse for the reply; this message will not be resent." : "Open Muse on iPhone to finish connecting.")
         }
@@ -264,6 +305,74 @@ final class PhoneState {
         avatarRevision = SHA256.hash(data: bytes).map { String(format: "%02x", $0) }.joined(); changed(); sendAssets()
     }
     var avatarURL: URL { directory.appendingPathComponent("muse-avatar.jpg") }
+    func replyAudioURL(_ audio: ReplyAudio) -> URL { directory.appendingPathComponent(audio.filename) }
+    private func cacheReplyAudio(_ data: Data, at index: Int) throws {
+        let player = try AVAudioPlayer(data: data)
+        recordAudioDiagnostic("Audio decoded: \(Int(player.duration)) seconds")
+        let audio = try ReplyAudio(data: data, duration: player.duration)
+        try data.write(to: replyAudioURL(audio), options: [.atomic, .completeFileProtectionUntilFirstUserAuthentication])
+        messages[index].replyAudio = audio; messages[index].replyAudioState = .ready
+        try persist(); publish()
+        _ = sendReplyAudio(ReplyAudioTransfer(account: credentialNodeID ?? "", chatID: messages[index].chatID, messageID: messages[index].id, audio: audio))
+    }
+    @discardableResult func requestReplyAudio(_ request: ReplyAudioRequest) -> Bool {
+        guard paired, storageReady, request.account == credentialNodeID, (try? request.validate()) != nil,
+              let message = messages.first(where: { $0.id == request.messageID && $0.chatID == request.chatID && $0.role == "muse" }) else { return false }
+        if let audio = message.replyAudio, sendReplyAudio(ReplyAudioTransfer(account: request.account, chatID: request.chatID, messageID: message.id, audio: audio)) { return true }
+        if activeAudioRequest == request || audioRequests.contains(request) { return true }
+        guard audioRequests.count < 20 else { return false }
+        audioRequests.append(request)
+        if let index = messages.firstIndex(where: { $0.id == request.messageID }) { messages[index].replyAudioState = .preparing }
+        changed(); startProcessing()
+        return true
+    }
+    func requestReplyAudio(for message: RelayMessage) {
+        _ = requestReplyAudio(ReplyAudioRequest(account: credentialNodeID ?? "", chatID: message.chatID, messageID: message.id))
+    }
+    private func processAudioRequests() async {
+        busy = true; fetchingAudioOnly = true
+        defer {
+            pump = nil; busy = false; fetchingAudioOnly = false; activeAudioRequest = nil; endBackground(); publish()
+            if !audioBackgroundExpired, nextEntry != nil { Task { [weak self] in self?.startProcessing() } }
+        }
+        while paired, storageReady, !audioBackgroundExpired, nextEntry == nil, !audioRequests.isEmpty {
+            let request = audioRequests.removeFirst()
+            activeAudioRequest = request
+            guard request.account == credentialNodeID else { continue }
+            do {
+                guard let bytes = try SecureStore.read("device-credentials") else { throw MuseError.rejectedCredentials }
+                status = "Getting voice reply…"; error = nil; publish()
+                // A cached reply's TTS endpoint needs registration, not a historical chat subscription or another post.
+                try await client.connect(credentials: JSONDecoder().decode(DeviceCredentials.self, from: bytes), sessionID: request.chatID.uuidString.lowercased(), subscribeToChat: false)
+                let data = try await client.replyAudio(messageID: request.messageID)
+                guard request.account == credentialNodeID, let index = messages.firstIndex(where: { $0.id == request.messageID && $0.chatID == request.chatID && $0.role == "muse" }) else { throw RelayError.invalid }
+                try cacheReplyAudio(data, at: index)
+            } catch {
+                if case ReplyAudioError.http(let status) = error { recordAudioDiagnostic("Audio unavailable HTTP \(status)") }
+                else { recordAudioDiagnostic("Audio unavailable code \((error as NSError).code)") }
+                if (error as? MuseError) == .rejectedCredentials { paired = false; self.error = "Reconnect your Muse account." }
+                if let index = messages.firstIndex(where: { $0.id == request.messageID && $0.chatID == request.chatID }) { messages[index].replyAudioState = .unavailable }
+                changed()
+            }
+            await client.disconnect(); connected = false; status = paired ? "Ready for your Watch" : "Reconnect your Muse account"; publish()
+            activeAudioRequest = nil
+        }
+    }
+    private func recordAudioDiagnostic(_ value: String) {
+        #if DEBUG
+        // Counts/statuses only: no credentials, message text, IDs, URLs, or remote bodies.
+        audioDiagnostics.append(value); audioDiagnostics = Array(audioDiagnostics.suffix(40))
+        if let data = try? JSONEncoder().encode(audioDiagnostics) {
+            try? data.write(to: directory.appendingPathComponent("reply-audio-diagnostics.json"), options: [.atomic, .completeFileProtectionUntilFirstUserAuthentication])
+        }
+        #endif
+    }
+    private func sendReplyAudio(_ asset: ReplyAudioTransfer) -> Bool {
+        guard paired, storageReady, asset.account == credentialNodeID,
+              messages.contains(where: { $0.id == asset.messageID && $0.chatID == asset.chatID && $0.role == "muse" && $0.replyAudio == asset.audio }),
+              let data = try? Data(contentsOf: replyAudioURL(asset.audio)), (try? asset.validate(data)) != nil else { return false }
+        relay.transferReplyAudio(asset, url: replyAudioURL(asset.audio)); return true
+    }
     private func sendAssets() {
         if avatarRevision != nil { relay.transferAsset(kind: "avatar", url: avatarURL, account: credentialNodeID ?? "") }
         if let data = try? JSONEncoder().encode(snapshot()), data.count < 2 * 1024 * 1024 {

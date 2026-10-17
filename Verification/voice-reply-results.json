@@ -1,0 +1,26 @@
+{
+  "date": "2026-10-17",
+  "protocolTestsPassed": 35,
+  "watchModelChecksPassed": true,
+  "signedDebugBuildPassed": true,
+  "releaseBuildPassed": true,
+  "realVoiceReply": {
+    "httpStatus": 200,
+    "downloadedBytes": 33216,
+    "decodedDurationSeconds": 4.15,
+    "phonePlayControlObserved": true,
+    "watchCacheFileVerified": true,
+    "watchChecksumMatchedPhoneMetadata": true,
+    "serverResponseReportedAnError": true
+  },
+  "olderReplyAudioHTTPStatus": 400,
+  "validationMessagesPosted": 1,
+  "manualNameSavedOnPhone": true,
+  "manualNameObservedOnWatch": true,
+  "serverTopicMetadataObserved": false,
+  "watchPlaybackControlObserved": true,
+  "watchAudiblePlaybackVerified": false,
+  "remainingDeviceCheck": "Listen on the physical Watch to confirm the chosen output route and sound; check pause/resume with a longer reply. Play/Pause control and progressing playback were observed in the Watch preview.",
+  "watchPlaybackProgressObserved": true,
+  "watchPauseResumeVerified": false
+}

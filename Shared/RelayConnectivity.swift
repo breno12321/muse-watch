@@ -12,6 +12,8 @@ final class RelayConnectivity: NSObject, WCSessionDelegate {
     var onReceipt: ((UUID) -> Void)?
     var onStatus: ((Bool) -> Void)?
     var onAsset: ((String, URL, String) -> Void)?
+    var onReplyAudio: ((ReplyAudioTransfer, URL) -> Void)?
+    var onReplyAudioRequest: ((ReplyAudioRequest) -> Bool)?
     private nonisolated let incoming: URL
     private var session: WCSession? { WCSession.isSupported() ? .default : nil }
     private var activated: Bool { session?.activationState == .activated }
@@ -130,6 +132,25 @@ final class RelayConnectivity: NSObject, WCSessionDelegate {
         guard activated, let session else { return }
         if !session.outstandingFileTransfers.contains(where: { $0.file.metadata?["kind"] as? String == kind }) { session.transferFile(url, metadata: ["kind": kind, "account": account]) }
     }
+    func transferReplyAudio(_ asset: ReplyAudioTransfer, url: URL) {
+        guard activated, let session, let metadata = try? JSONEncoder().encode(asset) else { return }
+        if !session.outstandingFileTransfers.contains(where: { transfer in
+            guard let bytes = transfer.file.metadata?["replyAudio"] as? Data else { return false }
+            return (try? JSONDecoder().decode(ReplyAudioTransfer.self, from: bytes)) == asset
+        }) {
+            session.transferFile(url, metadata: ["replyAudio": metadata])
+        }
+    }
+    func requestReplyAudio(_ asset: ReplyAudioRequest) {
+        guard activated, let session, let metadata = try? JSONEncoder().encode(asset) else { return }
+        if !session.outstandingUserInfoTransfers.contains(where: { transfer in
+            guard let bytes = transfer.userInfo["replyAudioRequest"] as? Data else { return false }
+            return (try? JSONDecoder().decode(ReplyAudioRequest.self, from: bytes)) == asset
+        }) {
+            session.transferUserInfo(["replyAudioRequest": metadata])
+        }
+        if canSendImmediately { session.sendMessage(["replyAudioRequest": metadata], replyHandler: { _ in }, errorHandler: { _ in }) }
+    }
     private func receiveSnapshot(_ data: Data) {
         guard data.count <= 2 * 1024 * 1024, let snapshot = try? JSONDecoder().decode(RelaySnapshot.self, from: data), snapshot.version == 1 else { return }
         onSnapshot?(snapshot)
@@ -141,6 +162,10 @@ final class RelayConnectivity: NSObject, WCSessionDelegate {
         Task { @MainActor in self.receiveSnapshot(data) }
     }
     nonisolated func session(_ session: WCSession, didReceiveUserInfo userInfo: [String: Any] = [:]) {
+        if let bytes = userInfo["replyAudioRequest"] as? Data, bytes.count < 20000,
+           let asset = try? JSONDecoder().decode(ReplyAudioRequest.self, from: bytes) {
+            Task { @MainActor in _ = self.onReplyAudioRequest?(asset) }; return
+        }
         guard let data = userInfo["request"] as? Data, data.count <= 20000, let request = try? JSONDecoder().decode(RelayRequest.self, from: data) else { return }
         Task { @MainActor in _ = self.onRequest?(request, nil) }
     }
@@ -150,6 +175,10 @@ final class RelayConnectivity: NSObject, WCSessionDelegate {
     }
     nonisolated func session(_ session: WCSession, didReceiveMessage message: [String: Any], replyHandler: @escaping ([String: Any]) -> Void) {
         let reply = ConnectivityReply(replyHandler)
+        if let bytes = message["replyAudioRequest"] as? Data, bytes.count < 20000,
+           let asset = try? JSONDecoder().decode(ReplyAudioRequest.self, from: bytes) {
+            Task { @MainActor in reply.send(["queued": self.onReplyAudioRequest?(asset) ?? false]) }; return
+        }
         if let data = message["request"] as? Data, data.count <= 20000, let request = try? JSONDecoder().decode(RelayRequest.self, from: data) {
             if let chunk = message["audioChunk"] as? Data, let index = message["chunkIndex"] as? Int, let total = message["totalBytes"] as? Int {
                 Task { @MainActor in
@@ -164,7 +193,16 @@ final class RelayConnectivity: NSObject, WCSessionDelegate {
         do {
             let size = try file.fileURL.resourceValues(forKeys: [.fileSizeKey]).fileSize ?? 0
             guard size > 0, size <= 3 * 1024 * 1024 else { return }
-            if let bytes = file.metadata?["request"] as? Data, bytes.count < 20000 {
+            if let bytes = file.metadata?["replyAudio"] as? Data, bytes.count < 20000 {
+                let asset = try JSONDecoder().decode(ReplyAudioTransfer.self, from: bytes)
+                try asset.validate(Data(contentsOf: file.fileURL))
+                let destination = incoming.appendingPathComponent(UUID().uuidString + ".mp3")
+                try FileManager.default.copyItem(at: file.fileURL, to: destination)
+                Task { @MainActor in
+                    if let handler = self.onReplyAudio { handler(asset, destination) }
+                    else { try? FileManager.default.removeItem(at: destination) }
+                }
+            } else if let bytes = file.metadata?["request"] as? Data, bytes.count < 20000 {
                 let request = try JSONDecoder().decode(RelayRequest.self, from: bytes); try request.validate()
                 guard let hash = request.audioSHA256 else { return }
                 let data = try Data(contentsOf: file.fileURL)

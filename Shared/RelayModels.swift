@@ -66,7 +66,7 @@ public struct RelayRequest: Codable, Equatable, Sendable, Identifiable {
             guard hash.count == 64, hash.allSatisfy({ $0.isHexDigit }), let duration, duration.isFinite, duration >= 0.3, duration <= 61 else { throw RelayError.invalid }
         } else if duration != nil { throw RelayError.invalid }
         if let chat = newChat {
-            guard chat.id == chatID, !chat.exists,
+            guard chat.id == chatID, !chat.exists, chat.serverTitle == nil, chat.customTitle == nil,
                   !chat.title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
                   chat.title.utf8.count <= 80, !chat.symbol.isEmpty, chat.symbol.utf8.count <= 80 else { throw RelayError.invalid }
         }
@@ -90,7 +90,17 @@ public struct RelayChat: Codable, Hashable, Sendable, Identifiable {
     public var title: String
     public var symbol: String
     public var exists: Bool
+    public var serverTitle: String?
+    public var customTitle: String?
+    public var displayTitle: String { customTitle ?? serverTitle ?? title }
     public init(id: UUID = UUID(), title: String, symbol: String, exists: Bool = false) { self.id = id; self.title = title; self.symbol = symbol; self.exists = exists }
+    public mutating func rename(_ name: String?) throws {
+        let cleaned = name?.trimmingCharacters(in: .whitespacesAndNewlines)
+        if let cleaned {
+            guard !cleaned.isEmpty, cleaned.count <= 80, !cleaned.unicodeScalars.contains(where: { CharacterSet.controlCharacters.contains($0) }) else { throw RelayError.invalid }
+        }
+        customTitle = cleaned
+    }
     public static func fresh(in chats: [RelayChat]) -> RelayChat {
         let titles = Set(chats.map(\.title))
         var number = 1
@@ -108,6 +118,8 @@ public struct RelayMessage: Codable, Equatable, Sendable, Identifiable {
     public var duration: Double?
     public var delivery: Delivery?
     public var detail: String?
+    public var replyAudio: ReplyAudio?
+    public var replyAudioState: ReplyAudioState?
     public init(id: String, requestID: UUID? = nil, chatID: UUID, role: String, text: String, date: Date = .now, duration: Double? = nil, delivery: Delivery? = nil, detail: String? = nil) {
         self.id = id; self.requestID = requestID; self.chatID = chatID; self.role = role; self.text = text; self.date = date; self.duration = duration; self.delivery = delivery; self.detail = detail
     }

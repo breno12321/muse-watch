@@ -69,17 +69,40 @@ struct MessageBubble: View {
                         .font(.system(size: 12)).frame(width: 28, height: 28)
                 }.buttonStyle(.plain).accessibilityLabel(message.saved ? "Unsave message" : "Save message to Saved messages")
             }.foregroundStyle(MuseStyle.secondary)
+            if message.role == .muse, !message.text.isEmpty {
+                MuseRichText(text: message.text).font(.system(size: 15))
+            }
             if let file = message.audioFile {
                 Button { audio.play(file, url: store.audioURL(file)) } label: {
                     HStack {
                         Image(systemName: audio.playingFile == file ? "pause.fill" : "play.fill")
                         Image(systemName: "waveform").font(.title3)
-                        Text(audioTime(message.duration ?? 0)).monospacedDigit().font(.caption)
+                        VStack(alignment: .leading, spacing: 2) {
+                            if message.role == .muse { Text(audio.playingFile == file ? "Pause reply" : "Play reply").font(.caption) }
+                            Text(audio.playingFile == file ? "\(audioTime(audio.playbackElapsed)) / \(audioTime(message.duration ?? 0))" : audioTime(message.duration ?? 0)).monospacedDigit().font(.caption2)
+                        }
                     }.frame(maxWidth: .infinity, alignment: .leading)
-                }.buttonStyle(.plain).accessibilityLabel("\(audio.playingFile == file ? "Pause" : "Play") voice note, \(audioTime(message.duration ?? 0))")
+                }.buttonStyle(.plain).accessibilityLabel("\(audio.playingFile == file ? "Pause" : "Play") \(message.role == .muse ? "Muse reply" : "voice note"), \(audioTime(message.duration ?? 0))")
+                    .accessibilityIdentifier(message.role == .muse ? "playMuseReply" : "playVoiceNote")
+                if audio.playingFile == file {
+                    ProgressView(value: min(audio.playbackElapsed, max(audio.playbackDuration, 1)), total: max(audio.playbackDuration, 1)).tint(MuseStyle.accent)
+                }
+            } else if message.role == .user {
+                Text(verbatim: message.text).font(.system(size: 15)).fixedSize(horizontal: false, vertical: true)
+            } else if message.replyAudio != nil {
+                Button { store.requestReplyAudio(message, in: conversationID) } label: {
+                    Label("Sync voice reply", systemImage: "arrow.down.circle").font(.caption)
+                }.buttonStyle(.plain).accessibilityIdentifier("syncMuseReply")
+            } else if message.replyAudioState == .preparing {
+                HStack { ProgressView().controlSize(.mini); Text("Preparing audio…").font(.caption2) }
+            } else if message.replyAudioState == .unavailable {
+                Text("Voice reply unavailable. Your text is saved.").font(.caption2).foregroundStyle(MuseStyle.secondary)
+                Button("Try audio again") { store.requestReplyAudio(message, in: conversationID) }.font(.caption2)
             } else if message.role == .muse {
-                MuseRichText(text: message.text).font(.system(size: 15))
-            } else { Text(verbatim: message.text).font(.system(size: 15)).fixedSize(horizontal: false, vertical: true) }
+                Button { store.requestReplyAudio(message, in: conversationID) } label: {
+                    Label("Get voice reply", systemImage: "speaker.wave.2").font(.caption)
+                }.buttonStyle(.plain)
+            }
             if let delivery = message.delivery {
                 Text(delivery.label).font(.system(size: 10)).foregroundStyle(delivery == .uncertain || delivery == .failed ? .orange : MuseStyle.secondary)
             }

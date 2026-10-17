@@ -22,12 +22,14 @@ final class MuseStore {
     private var snapshot: RelaySnapshot?
     private var outbox: [RelayRequest] = []
     private var localChats: [RelayChat] = []
+    private var replyAudioFiles: [String: ReplyAudioTransfer] = [:]
     private var bookmarks = Set<String>()
     private var audioFiles: [String: String] = [:]
     private var canPersist = true
     private struct Saved: Codable {
         var snapshot: RelaySnapshot?; var outbox: [RelayRequest]; var bookmarks: Set<String>; var audioFiles: [String: String]; var draft: VoiceDraft?
         var localChats: [RelayChat]?; var selectedChatID: UUID?
+        var replyAudioFiles: [String: ReplyAudioTransfer]?
     }
     init(directory: URL? = nil, connectivity: Bool = true) {
         self.directory = directory ?? FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
@@ -39,12 +41,14 @@ final class MuseStore {
                 let saved = try JSONDecoder().decode(Saved.self, from: Data(contentsOf: file))
                 snapshot = saved.snapshot; outbox = saved.outbox; bookmarks = saved.bookmarks; audioFiles = saved.audioFiles; draft = saved.draft
                 localChats = saved.localChats ?? []; selectedChatID = saved.selectedChatID
+                replyAudioFiles = saved.replyAudioFiles ?? [:]
                 rebuild()
             }
         } catch { canPersist = false; self.error = "Your saved Watch history could not be opened. It has been preserved." }
         relay?.onSnapshot = { [weak self] value in self?.receive(value) }
         relay?.onStatus = { [weak self] value in self?.phoneReachable = value; self?.flush() }
         relay?.onReceipt = { [weak self] id in self?.acknowledgePhone(id) }
+        relay?.onReplyAudio = { [weak self] asset, url in self?.receiveReplyAudio(asset, from: url) }
         relay?.onAsset = { [weak self] kind, url, account in
             guard let self, kind == "avatar", self.snapshot?.account == account else { try? FileManager.default.removeItem(at: url); return }
             do {
@@ -71,7 +75,8 @@ final class MuseStore {
         if let old = snapshot, old.account == value.account, value.revision < old.revision { return }
         if let old = snapshot, !old.account.isEmpty, old.account != value.account, !value.account.isEmpty {
             try? FileManager.default.copyItem(at: file, to: directory.appendingPathComponent("previous-account-\(UUID().uuidString).json"))
-            outbox = []; bookmarks = []; audioFiles = [:]; draft = nil; snapshot = nil; localChats = []; selectedChatID = nil
+            for asset in replyAudioFiles.values { try? FileManager.default.removeItem(at: audioURL(asset.audio.filename)) }
+            outbox = []; bookmarks = []; audioFiles = [:]; draft = nil; snapshot = nil; localChats = []; selectedChatID = nil; replyAudioFiles = [:]
             try? FileManager.default.removeItem(at: avatarURL); avatarVersion = UUID()
         }
         var incoming = value
@@ -90,8 +95,10 @@ final class MuseStore {
         paired = snapshot.paired; museName = snapshot.museName; personName = snapshot.personName
         connectionStatus = snapshot.status; lastSynced = snapshot.updatedAt
         conversations = snapshot.chats.map { chat in
-            Conversation(id: chat.id, title: chat.title, symbol: chat.symbol, messages: snapshot.messages.filter { $0.chatID == chat.id }.map { value in
-                Message(id: value.id, role: value.role == "user" ? .user : .muse, text: value.text, date: value.date, audioFile: value.role == "user" ? value.requestID.flatMap { audioFiles[$0.uuidString] } : nil, duration: value.duration, saved: bookmarks.contains(value.id), delivery: value.delivery, detail: value.detail)
+            Conversation(id: chat.id, title: chat.displayTitle, symbol: chat.symbol, messages: snapshot.messages.filter { $0.chatID == chat.id }.map { value in
+                let asset = value.replyAudio.flatMap { replyAudioFiles[$0.id.uuidString] }
+                let cached = value.role == "muse" && asset?.account == snapshot.account && asset?.chatID == chat.id && asset?.messageID == value.id && asset?.audio == value.replyAudio && asset.map { FileManager.default.fileExists(atPath: audioURL($0.audio.filename).path) } == true
+                return Message(id: value.id, role: value.role == "user" ? .user : .muse, text: value.text, date: value.date, audioFile: value.role == "user" ? value.requestID.flatMap { audioFiles[$0.uuidString] } : (cached ? value.replyAudio?.filename : nil), duration: value.role == "muse" ? value.replyAudio?.duration : value.duration, saved: bookmarks.contains(value.id), delivery: value.delivery, detail: value.detail, replyAudio: value.replyAudio, replyAudioState: value.replyAudio == nil ? value.replyAudioState : (cached ? .ready : .preparing))
             })
         }
     }
@@ -100,7 +107,22 @@ final class MuseStore {
     }
     private func save() throws {
         guard canPersist else { throw RelayError.invalid }
-        try JSONEncoder().encode(Saved(snapshot: snapshot, outbox: outbox, bookmarks: bookmarks, audioFiles: audioFiles, draft: draft, localChats: localChats, selectedChatID: selectedChatID)).write(to: file, options: [.atomic, .completeFileProtectionUntilFirstUserAuthentication])
+        try JSONEncoder().encode(Saved(snapshot: snapshot, outbox: outbox, bookmarks: bookmarks, audioFiles: audioFiles, draft: draft, localChats: localChats, selectedChatID: selectedChatID, replyAudioFiles: replyAudioFiles)).write(to: file, options: [.atomic, .completeFileProtectionUntilFirstUserAuthentication])
+    }
+    func receiveReplyAudio(_ asset: ReplyAudioTransfer, from url: URL) {
+        defer { try? FileManager.default.removeItem(at: url) }
+        guard canPersist, asset.account == snapshot?.account else { return }
+        do {
+            let data = try Data(contentsOf: url); try asset.validate(data)
+            if let old = replyAudioFiles[asset.audio.id.uuidString], old != asset { throw RelayError.duplicate }
+            try data.write(to: audioURL(asset.audio.filename), options: [.atomic, .completeFileProtectionUntilFirstUserAuthentication])
+            replyAudioFiles[asset.audio.id.uuidString] = asset
+            rebuild(); persist()
+        } catch { self.error = "Couldn’t save this voice reply. Sync with your iPhone to try again." }
+    }
+    func requestReplyAudio(_ message: Message, in chatID: UUID) {
+        guard let account = snapshot?.account, message.role == .muse else { return }
+        relay?.requestReplyAudio(ReplyAudioRequest(account: account, chatID: chatID, messageID: message.id))
     }
     func read(_ id: UUID) {
         guard conversation(id) != nil, selectedChatID != id else { return }

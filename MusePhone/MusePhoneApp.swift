@@ -49,7 +49,7 @@ struct PhoneView: View {
                             newChat = state.createChat()
                         } label: { Label("New chat", systemImage: "plus.bubble") }
                             .accessibilityIdentifier("newChat")
-                        ForEach(state.chats) { chat in NavigationLink { PhoneChatView(chat: chat) } label: { Label(chat.title, systemImage: chat.symbol) } }
+                        ForEach(state.chats) { chat in NavigationLink { PhoneChatView(chat: chat) } label: { Label(chat.displayTitle, systemImage: chat.symbol) } }
                     }
                     Section("Your Watch") {
                         TextField("Muse name", text: $state.museName).onSubmit { state.updateProfile() }
@@ -85,6 +85,8 @@ struct PhoneChatView: View {
     let chat: RelayChat
     @Environment(PhoneState.self) private var state
     @State private var text = ""
+    @State private var audio = ReplyPlayer()
+    @State private var renaming: RelayChat?
     var body: some View {
         List {
             if !state.messages.contains(where: { $0.chatID == chat.id }) {
@@ -97,17 +99,69 @@ struct PhoneChatView: View {
                     if message.role == "muse" {
                         MuseRichText(text: message.text.isEmpty ? "Replying…" : message.text).textSelection(.enabled)
                     } else { Text(verbatim: message.text).textSelection(.enabled) }
+                    if let reply = message.replyAudio {
+                        Button { audio.toggle(reply, url: state.replyAudioURL(reply)) } label: {
+                            Label(audio.playingID == reply.id ? "Pause reply" : "Play reply · \(Int(reply.duration))s", systemImage: audio.playingID == reply.id ? "pause.fill" : "play.fill")
+                        }.accessibilityIdentifier("playMuseReply")
+                    } else if message.replyAudioState == .preparing {
+                        ProgressView("Preparing audio…").font(.caption)
+                    } else if message.replyAudioState == .unavailable {
+                        Text("Voice reply unavailable. Your text is saved.").font(.caption).foregroundStyle(.secondary)
+                        Button("Try audio again") { state.requestReplyAudio(for: message) }
+                    } else if message.role == "muse" {
+                        Button { state.requestReplyAudio(for: message) } label: { Label("Get voice reply", systemImage: "speaker.wave.2") }
+                    }
                     if let delivery = message.delivery { Text(delivery.label).font(.caption).foregroundStyle(.secondary) }
                     if let detail = message.detail { Text(detail).font(.caption).foregroundStyle(.orange) }
                 }.padding(.vertical, 5)
             }
-        }.navigationTitle(chat.title)
+            if let error = audio.error { Text(error).font(.caption).foregroundStyle(.secondary) }
+        }.navigationTitle(state.chats.first(where: { $0.id == chat.id })?.displayTitle ?? chat.displayTitle)
+        .onDisappear { audio.stop() }
+        .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                Button {
+                    renaming = state.chats.first(where: { $0.id == chat.id }) ?? chat
+                } label: { Image(systemName: "pencil") }
+                    .accessibilityLabel("Edit chat name").accessibilityIdentifier("editChatName")
+            }
+        }
+        .sheet(item: $renaming) { value in RenameChatView(chat: value) }
         .safeAreaInset(edge: .bottom) {
             HStack { TextField("Message \(state.museName)", text: $text, axis: .vertical).textFieldStyle(.roundedBorder)
                 Button("Send") { state.sendText(text, to: chat.id); text = "" }.disabled(text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
             }.padding().background(.bar)
         }
     }
+}
+struct RenameChatView: View {
+    let chat: RelayChat
+    @Environment(PhoneState.self) private var state
+    @Environment(\.dismiss) private var dismiss
+    @State private var title: String
+    init(chat: RelayChat) { self.chat = chat; _title = State(initialValue: chat.displayTitle) }
+    var body: some View {
+        NavigationStack {
+            Form {
+                TextField("Chat name", text: $title).autocorrectionDisabled().onSubmit { save() }
+                    .accessibilityIdentifier("chatNameField")
+                Text("Saved on this iPhone and synced to your Watch. Your name takes priority over Muse’s topic.")
+                    .font(.caption).foregroundStyle(.secondary)
+                if chat.customTitle != nil {
+                    Button(chat.serverTitle == nil ? "Use default name" : "Use Muse topic") {
+                        if state.renameChat(chat.id, title: nil) { dismiss() }
+                    }
+                }
+            }.navigationTitle("Chat name").navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() } }
+                ToolbarItem(placement: .confirmationAction) {
+                    Button("Save") { save() }.disabled(title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || title.count > 80)
+                }
+            }
+        }
+    }
+    private func save() { if state.renameChat(chat.id, title: title) { dismiss() } }
 }
 struct SetupView: View {
     @Environment(PhoneState.self) private var state

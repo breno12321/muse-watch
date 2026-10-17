@@ -11,6 +11,8 @@ The iPhone companion and paired Watch app are named **Muse Watch**. The iPhone i
 5. Watch chats use voice input only. Tap the microphone in the navigation bar to record; no keyboard or bottom input bar covers the conversation. The bookmark beside a message saves it to **Home gear → Saved messages**. Type messages in the iPhone companion if needed.
 6. Open **Chats → New chat**, then use the microphone. Confirm the first note and reply belong to the new chat and the previous chat keeps its history. Go back Home: Voice note now targets the chat you last opened. Try **New chat** on iPhone too, then sync the Watch. Empty chats remain local until their first message; this action alone sends no prompt.
 7. On iPhone, edit the Muse name/your name, tap **Save names**, or choose a Muse avatar image. Sync the Watch to transfer the change.
+8. In the iPhone chat, tap the pencil, edit **Chat name**, and Save. Confirm the title updates on both devices and survives relaunch. A manual name should survive later server topic updates. Clear it with **Use Muse topic / Use default name** if desired.
+9. After a voice reply arrives, tap **Play reply** on Watch, then pause/resume. Check playback progress and that its Markdown text remains readable. Replay the downloaded audio with iPhone unavailable. For an existing reply, **Get voice reply** attempts read-only MP3 retrieval without sending another message; **Sync voice reply** requests a missing Watch copy. A reply that has no voice stream must leave its text and delivery state intact.
 
 Leave chat with the top-left Back chevron or a rightward drag starting at the left edge. Swipes starting in the middle and ordinary vertical scrolling do not trigger Back. The same edge gesture works on Chats, Settings, and Saved messages.
 
@@ -30,6 +32,7 @@ For a longer task, open Muse Watch on iPhone and leave it in the foreground. The
 - A potentially submitted request is never automatically resent. **Delivery uncertain** asks you to check official Muse.
 - An acknowledged request whose reply was interrupted shows **Sent · open Muse for reply**. Reopening the iPhone can resume listening to a still-running turn without posting again. If the server already completed it, historical replay is not guaranteed; read that reply in official Muse.
 - Drafts, recordings, cached replies, and Watch bookmarks survive app relaunch. Corrupt local history is preserved rather than silently replaced.
+- Audio is cached before transfer. File arrival may precede chat metadata; it must attach only to the matching account, chat, and assistant message. Missing files offer sync, and failed/expired fetches offer retry. Older text-only replies may have no stream. Do not claim that a spinner or successful download proves audible playback; verify Play/Pause on the physical Watch and its available audio route.
 
 ## Rebuild / install
 
@@ -61,5 +64,7 @@ swift test
 Protocol tests cover independent SDK crypto fixtures, token/envelope boundaries, chat correlation, the real empty-parent reply shape, WAV upload schema, duplicate delivery, crash recovery, snapshot size limits, and reply-listening recovery. Watch model checks cover offline queue persistence, real cached replies, bookmarks, missing recordings, account changes, stale snapshots, and corrupt-file preservation.
 
 New-chat checks cover independent IDs, validated first-message metadata, idempotent phone adoption without replacing an existing session, offline voice-note destinations, relaunch, sync races before phone adoption, legacy archives/requests, and account isolation. For a device check, briefly disconnect the Watch from its phone, create a chat and record a note, then reconnect; verify it appears once on iPhone and gets a reply in its own conversation. Keep an older draft while opening a different chat and confirm it is still sent to its original destination. Automated tests exercise these cases without live account posts.
+
+Audio/name checks cover bounded split response assembly, audio-only HTTP errors, legacy endpoint fallback paths, URL-component encoding, GET framing, checksum rejection, account isolation, file-before-metadata replay, custom name precedence/reset/validation, and backward-compatible archives. Real server topic metadata is optional and not documented as a guaranteed SDK event; synthetic parser checks do not establish that a server topic was received.
 
 See [Verification/REPORT.md](Verification/REPORT.md) for physical-device results. Synthetic tests alone do not establish end-to-end account compatibility.

@@ -9,10 +9,14 @@ final class AudioController: NSObject, AVAudioRecorderDelegate, AVAudioPlayerDel
     var elapsed: TimeInterval = 0
     var level: Float = 0
     var playingFile: String?
+    var playbackElapsed: TimeInterval = 0
+    var playbackDuration: TimeInterval = 0
     var error: String?
     var finishedDraft: VoiceDraft?
     private var recorder: AVAudioRecorder?
     private var player: AVAudioPlayer?
+    private var pausedFile: String?
+    private var playbackMeter: Task<Void, Never>?
     private var playbackGeneration = UUID()
     private var recordingGeneration = UUID()
     private var meterTask: Task<Void, Never>?
@@ -75,25 +79,39 @@ final class AudioController: NSObject, AVAudioRecorderDelegate, AVAudioPlayerDel
         self.fileName = nil; recorder = nil; releaseSession()
     }
     func play(_ file: String, url: URL) {
-        if playingFile == file { stopPlayback(); return }
-        stopPlayback()
+        guard !recording, !requestingPermission else { return }
+        if playingFile == file {
+            player?.pause(); playingFile = nil; pausedFile = file; playbackMeter?.cancel(); releaseSession(); return
+        }
+        let resume = pausedFile == file && player != nil
+        if !resume { stopPlayback() }
         let generation = playbackGeneration
         do {
-            try AVAudioSession.sharedInstance().setCategory(.playback, mode: .default)
+            try AVAudioSession.sharedInstance().setCategory(.playback, mode: .default, policy: .longFormAudio, options: [])
             Task { [weak self] in
                 guard let self else { return }
                 do {
                     try await AVAudioSession.sharedInstance().activate()
                     guard self.playbackGeneration == generation else { return }
-                    self.player = try AVAudioPlayer(contentsOf: url)
-                    self.player?.delegate = self
+                    if !resume { self.player = try AVAudioPlayer(contentsOf: url); self.player?.delegate = self }
                     guard self.player?.play() == true else { throw CocoaError(.fileReadUnknown) }
-                    self.playingFile = file
-                } catch { self.error = "Couldn’t play this recording. \(error.localizedDescription)"; self.releaseSession() }
+                    self.playingFile = file; self.pausedFile = nil; self.playbackDuration = self.player?.duration ?? 0
+                    self.playbackMeter = Task { [weak self] in
+                        while !Task.isCancelled {
+                            guard let self, self.playingFile == file else { return }
+                            self.playbackElapsed = self.player?.currentTime ?? 0
+                            try? await Task.sleep(for: .milliseconds(200))
+                        }
+                    }
+                } catch { self.stopPlayback(); self.error = "Couldn’t play this audio. \(error.localizedDescription)" }
             }
         } catch { self.error = error.localizedDescription }
     }
-    func stopPlayback() { playbackGeneration = UUID(); player?.stop(); player = nil; playingFile = nil; releaseSession() }
+    func stopPlayback() {
+        playbackGeneration = UUID(); playbackMeter?.cancel(); playbackMeter = nil
+        player?.stop(); player = nil; playingFile = nil; pausedFile = nil
+        playbackElapsed = 0; playbackDuration = 0; releaseSession()
+    }
     private func releaseSession() { try? AVAudioSession.sharedInstance().setActive(false, options: .notifyOthersOnDeactivation) }
     nonisolated func audioRecorderDidFinishRecording(_ recorder: AVAudioRecorder, successfully flag: Bool) {
         Task { @MainActor in
@@ -108,7 +126,7 @@ final class AudioController: NSObject, AVAudioRecorderDelegate, AVAudioPlayerDel
         }
     }
     nonisolated func audioPlayerDidFinishPlaying(_ player: AVAudioPlayer, successfully flag: Bool) {
-        Task { @MainActor in self.stopPlayback() }
+        Task { @MainActor in if self.player === player { self.stopPlayback() } }
     }
 }
 

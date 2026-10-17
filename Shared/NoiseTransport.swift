@@ -131,9 +131,10 @@ public final class NoiseTransport {
     private var assemblies: [UInt64: Assembly] = [:]
     private var dead = false
     public init(send: NoiseCipher, receive: NoiseCipher) { self.send = send; self.receive = receive }
-    public func request(path: String, body: Data = Data(), streaming: Bool = false, headers: [(String, String)] = []) throws -> (id: UInt64, frames: [Data]) {
+    public func request(path: String, body: Data = Data(), streaming: Bool = false, headers: [(String, String)] = [], method: String = "POST") throws -> (id: UInt64, frames: [Data]) {
+        guard ["POST", "GET"].contains(method) else { throw MuseError.invalid("Unsupported request method.") }
         stream += 1
-        var request = Proto.string(1, "POST") + Proto.string(2, path)
+        var request = Proto.string(1, method) + Proto.string(2, path)
         for (name, value) in headers { request += Proto.bytes(3, Proto.string(1, name) + Proto.string(2, value)) }
         if !body.isEmpty { request += Proto.bytes(4, body) }
         if !streaming { request += Proto.int(5, 1) }

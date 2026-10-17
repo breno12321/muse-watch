@@ -4,7 +4,17 @@ Device screenshots and Bluetooth logs are kept locally and excluded from Git. Th
 
 **The live Muse Watch app is implemented and installed on the physical iPhone and Apple Watch. Real Watch text and microphone audio reached Muse, and real replies returned to both devices. A first message in a new Ideas conversation also completed and synced to the Watch.** Pairing, credential refresh, and reconnect were previously verified with this account. The older stages below are chronological records, superseded by the final results here.
 
-## Simplified Home and independent chats — latest update
+## Voice replies and editable chat names — latest update
+
+Requested voice-modality replies using the pinned SDK's request format. Completed assistant messages fetch bounded MP3 via encrypted `GET /api/voice/tts-stream`, with the documented legacy fallback after HTTP 404. TTS failures are isolated from text delivery. Complete decoded files are cached on iPhone and transferred with account/chat/message scope and SHA-256. Watch caches them before displaying Play/Pause/progress; text remains visible. A missing copy can be synced. Older replies can request read-only audio retrieval without a historical subscription or reposting a user message. Playback uses Apple's long-form speaker/headphone routing, without auto-play.
+
+The iPhone chat pencil opens an editor. Custom names persist, sync to Watch, and override optional server topic metadata. Reset restores the server/default name. No documented topic-fetch API was found in the pinned SDK; the live connection did not supply a topic during this check. The optional scoped-metadata parser is compatibility support, not a claim of a guaranteed server event.
+
+All 35 protocol tests and Watch model checks passed. Signed Debug and Release device builds passed. Physical iPhone/Watch builds were installed. The Watch launched; the final iPhone relaunch was blocked by its lock screen after controls had been checked on the preceding build. Observed the name editor save and the renamed title on Watch. Two old assistant messages returned unavailable audio; content-free diagnostics confirmed HTTP 400 for one older reply. Posted one short voice-mode validation request in a separate chat. Muse returned a service-error response, but its real audio downloaded with HTTP 200, decoded to 4.15 seconds, and produced a Play control on iPhone. Independently verified the 33,216-byte file in the Watch cache and its matching checksum. No response text, audio files, account IDs, or message IDs are included in this report.
+
+After the Watch preview woke, observed Play reply change to Pause reply and playback progress advance through the cached four-second MP3. Audible sound, the chosen physical output route, and pause/resume continuity still need a user check with a longer reply. Progressing playback is not claimed as proof of audible sound. Content-free results: [voice-reply-results.json](voice-reply-results.json).
+
+## Simplified Home and independent chats — previous update
 
 Home now has Voice note and Chats, with the Muse avatar and a settings gear. Chats offers New chat, and the iPhone conversation list has the same action. Existing conversations are retained. The selected chat persists and becomes the Home voice-note destination; an older draft retains its original destination. Saved messages moved into Settings.
 

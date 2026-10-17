@@ -11,6 +11,8 @@ struct Message: Identifiable, Codable, Equatable {
     var saved: Bool
     var delivery: Delivery?
     var detail: String?
+    var replyAudio: ReplyAudio? = nil
+    var replyAudioState: ReplyAudioState? = nil
 }
 struct Conversation: Identifiable, Equatable {
     let id: UUID

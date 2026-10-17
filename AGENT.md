@@ -37,6 +37,8 @@ Run checks relevant to the change. A successful compile does not prove device pa
 - Home stays focused on Voice note and Chats. Preserve selected-chat persistence and existing chat history. New Watch chats travel as validated metadata with their first durable message; adoption must be idempotent and must never replace an existing server session. An older draft keeps its original chat even if selection changes.
 - Keep edge gestures confined to the edge so normal reading gestures remain available. Do not dismiss an active recording through a parent gesture.
 - Preserve Markdown source from Muse events. Render it natively; user text remains literal. Do not fetch remote images or enable arbitrary link schemes.
+- Voice replies use Muse's SDK MP3 endpoint through the iPhone. Keep download/transfer sizes bounded, verify account/chat/message scope and file hashes, and retain reply text when audio fails. Playback is tap-to-play; never auto-play, repost a user message to obtain audio, or send tokens/media URLs to Watch. Cache before transfer and copy incoming temporary files before the delegate returns.
+- Respect a user's custom chat name over optional server topic metadata. Do not invent a title-fetch endpoint or rename chats using arbitrary message/attachment titles.
 - iOS background execution is finite. Do not claim unlimited background replies or undocumented full-history/avatar synchronization.
 
 ## Privacy and publication

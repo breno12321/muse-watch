@@ -13,6 +13,7 @@ __pycache__/
 *.musepair
 
 *.wav
+*.mp3
 
 # Device/account captures and local setup artifacts
 SetupTransfers/

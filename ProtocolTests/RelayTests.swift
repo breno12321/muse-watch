@@ -117,7 +117,7 @@ final class RelayTests: XCTestCase {
         let audio = wav(seconds: 60)
         let body = try VoicePayload.body(audio, text: "", deviceID: "device", sessionID: "owned-chat")
         let object = try jsonObject(body)
-        XCTAssertEqual(object["output_modality"] as? String, "text")
+        XCTAssertEqual(object["output_modality"] as? String, "voice")
         XCTAssertEqual(object["session_id"] as? String, "owned-chat")
         let item = try XCTUnwrap((object["items"] as? [[String: Any]])?.first)
         XCTAssertEqual(item["mime_type"] as? String, "audio/wav")
