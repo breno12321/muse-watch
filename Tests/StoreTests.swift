@@ -36,8 +36,16 @@ import Foundation
         precondition(store.conversation(chat.id)?.messages.first { $0.id == voiceMessage.id }?.audioFile == recording)
         precondition(store.conversation(chat.id)?.messages.first { $0.id == "voice-reply" }?.audioFile == nil)
         precondition(store.conversation(chat.id)?.messages.first { $0.id == "voice-reply" }?.text == "I heard your recording.")
+        var transcribed = voiceSnapshot; transcribed.revision = 3
+        let voiceIndex = transcribed.messages.firstIndex { $0.id == voiceMessage.id }!
+        transcribed.messages[voiceIndex].text = "Please say hello."
+        store.receive(transcribed)
+        let transcriptRestored = MuseStore(directory: directory, connectivity: false)
+        let transcribedNote = transcriptRestored.conversation(chat.id)?.messages.first { $0.id == voiceMessage.id }
+        precondition(transcribedNote?.text == "Please say hello." && transcribedNote?.audioFile == recording)
+        precondition(transcriptRestored.conversation(chat.id)?.messages.filter { $0.id == voiceMessage.id }.count == 1)
         precondition(audioTime(61.9) == "1:01")
-        print("PASS: offline queue survives restart; real cached replies/bookmarks survive; no demo data; missing recording retained; voice replies render text")
+        print("PASS: offline queue survives restart; real cached replies/bookmarks survive; no demo data; missing recording retained; voice transcript and local playback survive sync/relaunch without duplicates")
         // Old snapshots never overwrite a newer server delivery receipt.
         var newer = snapshot; newer.revision = 3
         newer.messages.append(RelayMessage(id: "next", chatID: chat.id, role: "muse", text: "New reply"))

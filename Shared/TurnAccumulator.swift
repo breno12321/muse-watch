@@ -21,6 +21,16 @@ public final class TurnAccumulator {
     }
     public var replyIDs: Set<String> { Set(replies.keys) }
     public var allRepliesComplete: Bool { !replies.isEmpty && replies.values.allSatisfy(\.done) }
+    public func acceptsAudioPresentation(_ event: [String: Any]) -> Bool {
+        guard acknowledgedID != nil, event["type"] as? String == "event", event["event"] as? String == "delta.presentation",
+              let payload = event["payload"] as? [String: Any], payload["kind"] as? String == "audio", payload["role"] as? String != "user",
+              let session = nonempty(payload["session_id"]) ?? nonempty(event["session_id"]), matchesSession(session),
+              let id = nonempty(payload["message_id"]) ?? nonempty(event["message_id"]) ?? nonempty(payload["id"]),
+              replies[id] != nil, !retired.contains(id) else { return false }
+        if let parent = nonempty(payload["reply_to_message_id"]) ?? nonempty(payload["parent_message_id"]),
+           !userIDs.contains(parent), replies[parent] == nil, parent != id { return false }
+        return true
+    }
     public func acknowledge(_ object: [String: Any]) throws -> [Reply] {
         let ack = object["result"] as? [String: Any] ?? object
         guard let acknowledgedSession = ack["session_id"] as? String, matchesSession(acknowledgedSession) else { throw MuseError.invalid("Muse acknowledged a different chat identifier.") }
@@ -40,7 +50,7 @@ public final class TurnAccumulator {
             pending.append(event); return []
         }
         guard let name = event["event"] as? String,
-              ["delta.message_start", "delta.text_append", "delta.message_done", "message.assistant"].contains(name),
+              ["delta.message_start", "delta.text_append", "delta.message_done", "message.assistant", "delta.presentation"].contains(name),
               payload["role"] as? String != "user",
               let id = nonempty(payload["message_id"]) ?? nonempty(event["message_id"]) ?? nonempty(payload["id"]),
               !id.isEmpty, id.utf8.count <= 512, !retired.contains(id) else { return [] }
@@ -53,6 +63,10 @@ public final class TurnAccumulator {
         }
         guard replies[id] != nil || replies.count < 32 else { throw MuseError.invalid("Too many assistant messages.") }
         var reply = replies[id] ?? Reply(id: id, text: "", done: false)
+        if name == "delta.presentation" {
+            guard payload["kind"] as? String == "audio", (payload["data"] as? [String: Any])?["audio"] is [String: Any] else { return [] }
+            if replies[id] == nil { reply.text = "Voice note"; reply.done = true }
+        }
         if name == "delta.text_append", !reply.done, let text = payload["text"] as? String { reply.text += clean(text) }
         if name == "delta.message_done" || name == "message.assistant" {
             let final = payload["display_text"] as? String ?? payload["transcript"] as? String ?? transcript(payload["transcript"], id: id) ?? payload["content"] as? String

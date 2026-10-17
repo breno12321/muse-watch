@@ -37,6 +37,8 @@
 	<string>Check whether your iPhone can see the nearby Muse Watch setup gadget. This diagnostic does not connect or pair.</string>
 	<key>NSMicrophoneUsageDescription</key>
 	<string>Record and send reviewed voice notes to your Muse.</string>
+	<key>NSSpeechRecognitionUsageDescription</key>
+	<string>Transcribe Watch voice notes on this iPhone and send only the text to Muse.</string>
 	<key>UILaunchScreen</key>
 	<dict/>
 	<key>UISupportedInterfaceOrientations</key>

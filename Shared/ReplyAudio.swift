@@ -9,15 +9,17 @@ public struct ReplyAudio: Codable, Equatable, Sendable {
     public let sha256: String
     public let bytes: Int
     public let duration: Double
-    public var filename: String { "reply-\(id.uuidString).mp3" }
+    public let format: String?
+    public var fileExtension: String { if let format, ["wav", "m4a"].contains(format) { return format }; return "mp3" }
+    public var filename: String { "reply-\(id.uuidString).\(fileExtension)" }
     public init(data: Data, duration: Double) throws {
-        try Self.validateMP3(data)
+        format = try Self.detectFormat(data)
         guard duration.isFinite, duration > 0, duration <= 1800 else { throw RelayError.invalid }
         id = UUID(); bytes = data.count; self.duration = duration
         sha256 = SHA256.hash(data: data).map { String(format: "%02x", $0) }.joined()
     }
     public func validate(_ data: Data) throws {
-        try Self.validateMP3(data)
+        guard try Self.detectFormat(data) == (format ?? "mp3") else { throw RelayError.invalid }
         guard data.count == bytes, duration.isFinite, duration > 0, duration <= 1800,
               SHA256.hash(data: data).map({ String(format: "%02x", $0) }).joined() == sha256 else { throw RelayError.invalid }
     }
@@ -27,6 +29,14 @@ public struct ReplyAudio: Codable, Equatable, Sendable {
         let id3 = head == [0x49, 0x44, 0x33]
         let frame = head[0] == 0xff && head[1] & 0xe0 == 0xe0 && head[1] & 0x18 != 0x08 && head[1] & 0x06 != 0
         guard id3 || frame else { throw RelayError.invalid }
+    }
+    public static func detectFormat(_ data: Data) throws -> String {
+        guard data.count >= 4, data.count <= maximumBytes else { throw RelayError.invalid }
+        if (try? validateMP3(data)) != nil { return "mp3" }
+        if data.count >= 12, String(data: data.prefix(4), encoding: .ascii) == "RIFF",
+           String(data: data.dropFirst(8).prefix(4), encoding: .ascii) == "WAVE" { return "wav" }
+        if data.count >= 12, String(data: data.dropFirst(4).prefix(4), encoding: .ascii) == "ftyp" { return "m4a" }
+        throw RelayError.invalid
     }
     public static func paths(messageID: String) throws -> [String] {
         guard !messageID.isEmpty, messageID.utf8.count <= 512,
@@ -64,7 +74,8 @@ public enum ReplyAudioError: Error { case http(UInt64), incomplete, tooLarge }
 public struct ReplyAudioResponse {
     private var status: UInt64 = 0
     private var data = Data()
-    public init() {}
+    private let allowContainers: Bool
+    public init(allowContainers: Bool = false) { self.allowContainers = allowContainers }
     public mutating func append(status: UInt64, data chunk: Data, ended: Bool) throws -> Data? {
         if status != 0 { self.status = status }
         if self.status >= 400 { throw ReplyAudioError.http(self.status) }
@@ -72,7 +83,8 @@ public struct ReplyAudioResponse {
         data += chunk
         guard ended else { return nil }
         guard (200..<300).contains(self.status) else { throw ReplyAudioError.incomplete }
-        try ReplyAudio.validateMP3(data)
+        if allowContainers { _ = try ReplyAudio.detectFormat(data) }
+        else { try ReplyAudio.validateMP3(data) }
         return data
     }
 }

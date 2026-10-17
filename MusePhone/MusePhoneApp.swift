@@ -39,6 +39,10 @@ struct PhoneView: View {
                     }.padding(.vertical, 6)
                     if !state.paired {
                         Button("Connect your Muse") { setup = true }
+                    } else if !state.transcriptionAuthorized || state.blockedVoiceNotes > 0 {
+                        Button { settings = true } label: {
+                            Label(state.transcriptionAuthorized ? "Voice note needs attention" : "Enable voice transcription", systemImage: "waveform.badge.mic")
+                        }.foregroundStyle(.orange)
                     } else if state.error != nil {
                         Button { settings = true } label: {
                             Label("Connection needs attention", systemImage: "exclamationmark.circle")
@@ -100,6 +104,34 @@ struct PhoneSettingsView: View {
                 } else { Button("Connect your Muse") { setup = true } }
             }
             if state.paired {
+                Section("Voice notes") {
+                    Text("Your iPhone transcribes recordings locally. Only the text is sent to Muse. Saved voice replies stay playable on Watch.")
+                        .font(.caption).foregroundStyle(.secondary)
+                    Picker("Voice language", selection: $state.transcriptionLocale) {
+                        // Include the current preference even if this device no longer supports its locale.
+                        let locales = Set(VoiceTranscriber.locales.map(\.identifier) + [state.transcriptionLocale]).sorted()
+                        ForEach(locales, id: \.self) { identifier in
+                            Text(Locale.current.localizedString(forIdentifier: identifier) ?? identifier).tag(identifier)
+                        }
+                    }.disabled(state.busy).onChange(of: state.transcriptionLocale) { _, _ in state.saveTranscriptionLocale() }
+                    if state.transcriptionAuthorized {
+                        Label("Speech Recognition allowed", systemImage: "checkmark.circle")
+                    } else if state.transcriptionPermissionDenied {
+                        Button("Allow Speech Recognition in iOS Settings") {
+                            if let url = URL(string: UIApplication.openSettingsURLString) { UIApplication.shared.open(url) }
+                        }
+                    } else {
+                        Button("Enable transcription") { Task { await state.enableTranscription() } }
+                    }
+                    if state.blockedVoiceNotes > 0 {
+                        Text("\(state.blockedVoiceNotes) saved voice note(s) waiting. Nothing was sent for these notes.").font(.caption)
+                        Button("Retry saved voice notes") { state.retryVoiceNotes() }.disabled(state.busy || !state.transcriptionAuthorized)
+                    }
+                    Toggle("Ask for a voice note", isOn: $state.askForVoiceNote)
+                        .onChange(of: state.askForVoiceNote) { _, _ in state.saveReplyPreference() }
+                    Text("Adds a request for a voice note alongside text to new messages. Muse may return text only; audio depends on Muse and its SDK.")
+                        .font(.caption).foregroundStyle(.secondary)
+                }
                 Section("Your Muse") {
                     TextField("Muse name", text: $state.museName).onSubmit { state.updateProfile() }
                     TextField("Your name", text: $state.personName).onSubmit { state.updateProfile() }

@@ -72,6 +72,9 @@ struct MessageBubble: View {
             if message.role == .muse, !message.text.isEmpty {
                 MuseRichText(text: message.text).font(.system(size: 15))
             }
+            if message.role == .user, message.audioFile != nil, message.text != "Voice note", !message.text.isEmpty {
+                Text(verbatim: message.text).font(.system(size: 15)).fixedSize(horizontal: false, vertical: true)
+            }
             if let file = message.audioFile {
                 Button { audio.play(file, url: store.audioURL(file)) } label: {
                     HStack {

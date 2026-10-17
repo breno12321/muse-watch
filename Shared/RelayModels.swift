@@ -194,8 +194,22 @@ public struct JournalEntry: Codable, Sendable, Identifiable {
     public var acceptedID: String?
     public var detail: String?
     public var recoveryStopped: Bool?
+    public var transcript: String?
+    public var transcriptionBlocked: Bool?
+    public var voiceReply: Bool?
+    public var askForVoiceNote: Bool?
     public var id: UUID { request.id }
     public var canRecoverReply: Bool { delivery == .replyUnavailable && acceptedID != nil && recoveryStopped != true }
+    public var canPrepare: Bool { delivery == .received && acceptedID == nil && transcriptionBlocked != true }
+    public static let voiceNoteInstruction = "If possible, also append a voice note reply. Always include your reply as text."
+    public func outgoingText() throws -> String {
+        // A voice caption is never a substitute for a completed transcription.
+        let base = (request.audioSHA256 == nil ? request.text : transcript ?? "").trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !base.isEmpty else { throw RelayError.invalid }
+        let value = askForVoiceNote == true ? base + "\n\n" + Self.voiceNoteInstruction : base
+        guard value.utf8.count <= 16384 else { throw RelayError.invalid }
+        return value
+    }
 }
 public struct RelayJournal: Codable, Sendable {
     public var entries: [JournalEntry] = []
@@ -215,9 +229,22 @@ public struct RelayJournal: Codable, Sendable {
         }
         for i in entries.indices where entries[i].delivery == .uncertain && entries[i].acceptedID != nil { entries[i].delivery = .replyUnavailable }
         for i in entries.indices where entries[i].delivery == .connecting { entries[i].delivery = entries[i].acceptedID == nil ? .received : .replyUnavailable }
+        for i in entries.indices where entries[i].delivery == .received && entries[i].acceptedID == nil && entries[i].voiceReply == nil { entries[i].voiceReply = false }
     }
     public mutating func stopReplyRecovery(_ id: UUID, detail: String) {
         guard let index = entries.firstIndex(where: { $0.id == id }), entries[index].acceptedID != nil else { return }
         entries[index].recoveryStopped = true; entries[index].delivery = .replyUnavailable; entries[index].detail = detail
+    }
+    public mutating func saveTranscript(_ text: String, for id: UUID) throws {
+        guard let index = entries.firstIndex(where: { $0.id == id }), entries[index].acceptedID == nil,
+              [.received, .connecting].contains(entries[index].delivery), entries[index].request.audioSHA256 != nil else { throw RelayError.invalid }
+        let value = text.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !value.isEmpty, value.utf8.count <= 16384 else { throw RelayError.invalid }
+        entries[index].transcript = value; entries[index].transcriptionBlocked = nil
+    }
+    public mutating func retryTranscriptions() {
+        for index in entries.indices where entries[index].delivery == .received && entries[index].acceptedID == nil {
+            entries[index].transcriptionBlocked = nil
+        }
     }
 }

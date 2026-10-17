@@ -84,7 +84,6 @@ struct ChatsView: View {
                     deleteButton(chat)
                     Button { renaming = chat } label: { Label("Rename", systemImage: "pencil") }
                         .tint(.blue).accessibilityIdentifier("renameWatchChat")
-                    pinButton(chat)
                 }
             }
         }.navigationTitle("Chats")

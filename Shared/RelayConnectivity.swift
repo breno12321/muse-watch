@@ -215,7 +215,7 @@ final class RelayConnectivity: NSObject, WCSessionDelegate {
             if let bytes = file.metadata?["replyAudio"] as? Data, bytes.count < 20000 {
                 let asset = try JSONDecoder().decode(ReplyAudioTransfer.self, from: bytes)
                 try asset.validate(Data(contentsOf: file.fileURL))
-                let destination = incoming.appendingPathComponent(UUID().uuidString + ".mp3")
+                let destination = incoming.appendingPathComponent(UUID().uuidString + "." + asset.audio.fileExtension)
                 try FileManager.default.copyItem(at: file.fileURL, to: destination)
                 Task { @MainActor in
                     if let handler = self.onReplyAudio { handler(asset, destination) }

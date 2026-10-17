@@ -13,6 +13,7 @@ final class PhoneState {
     struct Archive: Codable {
         var account: String; var revision: Int; var chats: [RelayChat]; var messages: [RelayMessage]; var journal: RelayJournal
         var museName: String; var personName: String; var avatarRevision: String?
+        var audioPresentations: [String: MuseAudioPresentation]? = nil
     }
     var status = "Set up your Muse"
     var error: String?
@@ -23,6 +24,10 @@ final class PhoneState {
     var busy = false
     var hasCandidate = false
     var watchReachable = false
+    var transcriptionAuthorized = VoiceTranscriber.authorized
+    var transcriptionPermissionDenied = VoiceTranscriber.permissionDenied
+    var transcriptionLocale = UserDefaults.standard.string(forKey: "voice-transcription-locale") ?? Locale.current.identifier
+    var askForVoiceNote = UserDefaults.standard.bool(forKey: "ask-for-voice-note")
     var chats: [RelayChat] = []
     var messages: [RelayMessage] = []
     var museName = "Cal"
@@ -30,6 +35,7 @@ final class PhoneState {
     var avatarRevision: String?
     private(set) var journal = RelayJournal()
     private let client = MuseClient()
+    private let transcriber = VoiceTranscriber()
     private let relay = RelayConnectivity()
     private let directory: URL
     private let historyURL: URL
@@ -50,6 +56,7 @@ final class PhoneState {
     private var backgroundTask: UIBackgroundTaskIdentifier = .invalid
     private var audioRequests: [ReplyAudioRequest] = []
     private var fetchingAudioOnly = false
+    private var audioPresentations: [String: MuseAudioPresentation] = [:]
     private var activeAudioRequest: ReplyAudioRequest?
     private var audioBackgroundExpired = false
     #if DEBUG
@@ -75,6 +82,7 @@ final class PhoneState {
                 if saved.account == credentialNodeID {
                     revision = saved.revision; chats = saved.chats; messages = saved.messages; journal = saved.journal
                     museName = saved.museName; personName = saved.personName; avatarRevision = saved.avatarRevision
+                    audioPresentations = saved.audioPresentations ?? [:]
                     for index in messages.indices where messages[index].replyAudioState == .preparing { messages[index].replyAudioState = .unavailable }
                     journal.recoverInterrupted()
                     for entry in journal.entries { applyEntry(entry) }
@@ -94,6 +102,9 @@ final class PhoneState {
         relay.onStatus = { [weak self] reachable in self?.watchReachable = reachable }
         relay.onReplyAudioRequest = { [weak self] request in self?.requestReplyAudio(request) ?? false }
         relay.onRename = { [weak self] edit in self?.receiveRename(edit) ?? false }
+        for reference in audioPresentations.values.prefix(4) {
+            recordAudioDiagnostic("Audio presentation: stored \(reference.mimeLabel); \(reference.pathKind); resources \(reference.resources != nil)")
+        }
         listener = Task { [weak self] in await self?.listen() }
     }
     private func defaultChats(mainID: UUID = UUID()) -> [RelayChat] {
@@ -132,7 +143,7 @@ final class PhoneState {
     private func persist() throws {
         guard storageReady else { throw MuseError.invalid("Saved history needs attention on iPhone before sending.") }
         revision += 1
-        let saved = Archive(account: credentialNodeID ?? "", revision: revision, chats: chats, messages: messages, journal: journal, museName: museName, personName: personName, avatarRevision: avatarRevision)
+        let saved = Archive(account: credentialNodeID ?? "", revision: revision, chats: chats, messages: messages, journal: journal, museName: museName, personName: personName, avatarRevision: avatarRevision, audioPresentations: audioPresentations)
         try JSONEncoder().encode(saved).write(to: historyURL, options: [.atomic, .completeFileProtectionUntilFirstUserAuthentication])
     }
     func publish() { relay.publish(snapshot()) }
@@ -144,7 +155,23 @@ final class PhoneState {
             self?.publish()
         }
     }
-    func becameActive() { relay.refresh(); publish(); queueRecoveries(); startProcessing() }
+    func becameActive() {
+        transcriptionAuthorized = VoiceTranscriber.authorized
+        transcriptionPermissionDenied = VoiceTranscriber.permissionDenied
+        relay.refresh(); publish(); queueRecoveries(); startProcessing()
+    }
+    var blockedVoiceNotes: Int { journal.entries.filter { $0.delivery == .received && $0.transcriptionBlocked == true }.count }
+    func enableTranscription() async {
+        guard UIApplication.shared.applicationState == .active else { return }
+        transcriptionAuthorized = await VoiceTranscriber.authorize()
+        transcriptionPermissionDenied = VoiceTranscriber.permissionDenied
+        if transcriptionAuthorized { retryVoiceNotes() }
+    }
+    func saveTranscriptionLocale() { UserDefaults.standard.set(transcriptionLocale, forKey: "voice-transcription-locale") }
+    func saveReplyPreference() { UserDefaults.standard.set(askForVoiceNote, forKey: "ask-for-voice-note") }
+    func retryVoiceNotes() {
+        journal.retryTranscriptions(); changed(); startProcessing()
+    }
     func becameBackground() {
         if pump == nil { Task { guard pump == nil else { return }; await client.disconnect(); connected = false } }
     }
@@ -155,6 +182,7 @@ final class PhoneState {
             case .diagnostic(let value): if value.hasPrefix("Audio ") { recordAudioDiagnostic(value) }
             case .accepted(let session, let messageID):
                 guard let id = activeRequest, let index = journal.entries.firstIndex(where: { $0.id == id }), journal.entries[index].request.chatID.uuidString.lowercased() == session else { continue }
+                recordAudioDiagnostic("Muse turn: accepted")
                 journal.entries[index].acceptedID = messageID
                 if let chat = chats.firstIndex(where: { $0.id == journal.entries[index].request.chatID }) { chats[chat].exists = true }
                 setDelivery(id, .accepted); status = "Waiting for \(museName)…"; changed()
@@ -162,7 +190,10 @@ final class PhoneState {
                 guard let requestID = activeRequest, let entry = journal.entries.first(where: { $0.id == requestID }) else { continue }
                 if let index = messages.firstIndex(where: { $0.id == id }) { messages[index].text = text }
                 else { messages.append(RelayMessage(id: id, requestID: requestID, chatID: entry.request.chatID, role: "muse", text: text)) }
-                if done, let index = messages.firstIndex(where: { $0.id == id }), messages[index].replyAudioState == nil { messages[index].replyAudioState = .preparing }
+                if done, let index = messages.firstIndex(where: { $0.id == id }), messages[index].replyAudioState == nil {
+                    if entry.voiceReply != false { messages[index].replyAudioState = .preparing }
+                    recordAudioDiagnostic("Muse turn: reply text completed")
+                }
                 status = "\(museName) is replying…"; changed()
             case .replyAudio(let id, let data):
                 guard let request = activeRequest, let entry = journal.entries.first(where: { $0.id == request }),
@@ -173,6 +204,13 @@ final class PhoneState {
                 } catch {
                     messages[index].replyAudioState = .unavailable; changed()
                 }
+            case .audioPresentation(let id, let reference):
+                guard let requestID = activeRequest, let entry = journal.entries.first(where: { $0.id == requestID }),
+                      messages.contains(where: { $0.id == id && $0.chatID == entry.request.chatID && $0.role == "muse" }) else { continue }
+                var saved = reference
+                if let previous = audioPresentations[id], previous.path == reference.path { saved.accessDenied = previous.accessDenied }
+                audioPresentations[id] = saved; changed()
+                if saved.accessDenied != true { _ = requestReplyAudio(ReplyAudioRequest(account: credentialNodeID ?? "", chatID: entry.request.chatID, messageID: id)) }
             case .topic(let sessionID, let title):
                 guard let id = UUID(uuidString: sessionID), let index = chats.firstIndex(where: { $0.id == id }), chats[index].serverTitle != title else { continue }
                 chats[index].serverTitle = title; changed()
@@ -204,6 +242,11 @@ final class PhoneState {
             var updated = journal
             let inserted = try updated.receive(request)
             if inserted {
+                if let index = updated.entries.firstIndex(where: { $0.id == request.id }) {
+                    // Use the SDK's working text mode. Voice is an optional instruction, never a forced modality.
+                    updated.entries[index].voiceReply = false
+                    updated.entries[index].askForVoiceNote = askForVoiceNote
+                }
                 if let newChat { chats.append(newChat) }
                 journal = updated
                 messages.append(RelayMessage(id: request.id.uuidString, requestID: request.id, chatID: request.chatID, role: "user", text: request.audioSHA256 == nil ? request.text : (request.text.isEmpty ? "Voice note" : request.text), date: request.createdAt, duration: request.duration, delivery: .received))
@@ -225,9 +268,12 @@ final class PhoneState {
         journal.entries[i].delivery = delivery; journal.entries[i].detail = detail; applyEntry(journal.entries[i])
     }
     private func applyEntry(_ entry: JournalEntry) {
-        if let i = messages.firstIndex(where: { $0.id == entry.id.uuidString }) { messages[i].delivery = entry.delivery; messages[i].detail = entry.detail }
+        if let i = messages.firstIndex(where: { $0.id == entry.id.uuidString }) {
+            messages[i].delivery = entry.delivery; messages[i].detail = entry.detail
+            if let transcript = entry.transcript { messages[i].text = transcript }
+        }
     }
-    func retryConnection() { error = nil; attemptedRecoveries = []; queueRecoveries(); startProcessing(); publish() }
+    func retryConnection() { error = nil; attemptedRecoveries = []; journal.retryTranscriptions(); changed(); queueRecoveries(); startProcessing(); publish() }
     var unavailableReplyCount: Int { journal.entries.filter { $0.recoveryStopped == true }.count }
     private func stopUnavailableRecovery(_ id: UUID, issue: MuseError) {
         journal.stopReplyRecovery(id, detail: issue.localizedDescription)
@@ -240,7 +286,7 @@ final class PhoneState {
         }
     }
     private var nextEntry: JournalEntry? {
-        journal.entries.first(where: { $0.delivery == .received }) ?? journal.entries.last(where: { $0.canRecoverReply && recoveryIDs.contains($0.id) && !attemptedRecoveries.contains($0.id) })
+        journal.entries.first(where: \.canPrepare) ?? journal.entries.last(where: { $0.canRecoverReply && recoveryIDs.contains($0.id) && !attemptedRecoveries.contains($0.id) })
     }
     private func startProcessing() {
         guard pump == nil, !busy, paired, storageReady, nextEntry != nil || !audioRequests.isEmpty else { return }
@@ -257,9 +303,9 @@ final class PhoneState {
         busy = true
         defer {
             pump = nil; busy = false; monitoringRecovery = false; endBackground(); publish()
-            if restartAfterRecovery || (!audioRequests.isEmpty && nextEntry == nil) { restartAfterRecovery = false; Task { [weak self] in self?.startProcessing() } }
+            if !audioBackgroundExpired, restartAfterRecovery || (!audioRequests.isEmpty && nextEntry == nil) { restartAfterRecovery = false; Task { [weak self] in self?.startProcessing() } }
         }
-        while let entry = nextEntry, paired, storageReady {
+        while let entry = nextEntry, paired, storageReady, !audioBackgroundExpired {
             let request = entry.request
             let isRecovery = entry.acceptedID != nil; monitoringRecovery = isRecovery
             if isRecovery { attemptedRecoveries.insert(request.id); recoveryIDs.remove(request.id) }
@@ -268,25 +314,47 @@ final class PhoneState {
                 backgroundTask = UIApplication.shared.beginBackgroundTask(withName: "Muse Watch message") { [weak self] in Task { @MainActor in await self?.expireBackground() } }
             }
             do {
+                if !isRecovery, request.audioSHA256 != nil, entry.transcript == nil {
+                    setDelivery(request.id, .connecting, detail: "Transcribing on iPhone…"); status = "Transcribing voice note…"; try persist(); publish()
+                    let file = directory.appendingPathComponent("WatchTransfers").appendingPathComponent(request.id.uuidString + ".wav")
+                    let data = try Data(contentsOf: file)
+                    try VoicePayload.validateWAV(data)
+                    guard SHA256.hash(data: data).map({ String(format: "%02x", $0) }).joined() == request.audioSHA256 else { throw RelayError.invalid }
+                    recordAudioDiagnostic("Voice input: transcribing locally")
+                    let text = try await transcriber.transcribe(file, locale: transcriptionLocale)
+                    guard activeRequest == request.id else { throw VoiceTranscriptionError.cancelled }
+                    try journal.saveTranscript(text, for: request.id)
+                    if let updated = journal.entries.first(where: { $0.id == request.id }) { applyEntry(updated) }
+                    try persist(); publish() // Durable transcript precedes any Muse submission.
+                    recordAudioDiagnostic("Voice input: transcript saved")
+                }
+                guard let prepared = journal.entries.first(where: { $0.id == request.id }) else { throw RelayError.invalid }
+                let outgoingText = isRecovery ? "" : try prepared.outgoingText()
                 setDelivery(request.id, isRecovery ? .accepted : .connecting); try persist(); publish()
                 guard let bytes = try SecureStore.read("device-credentials"), let chat = chats.first(where: { $0.id == request.chatID }) else { throw MuseError.rejectedCredentials }
                 let credentials = try JSONDecoder().decode(DeviceCredentials.self, from: bytes)
-                try await client.connect(credentials: credentials, sessionID: chat.id.uuidString.lowercased(), existingChat: chat.exists, resumeAcceptedMessageID: entry.acceptedID)
+                try await client.connect(credentials: credentials, sessionID: chat.id.uuidString.lowercased(), existingChat: chat.exists, resumeAcceptedMessageID: entry.acceptedID, voiceReply: prepared.voiceReply ?? true, waitForVoiceNote: prepared.askForVoiceNote == true)
                 guard activeRequest == request.id else { throw MuseError.interrupted }
                 connected = true
                 if !isRecovery {
                     setDelivery(request.id, .sending); try persist(); publish()
-                    if request.audioSHA256 != nil {
-                    let file = directory.appendingPathComponent("WatchTransfers").appendingPathComponent(request.id.uuidString + ".wav")
-                    let data = try Data(contentsOf: file)
-                    _ = try await client.sendVoice(data, text: request.text)
-                    } else { _ = try await client.sendText(request.text) }
+                    recordAudioDiagnostic("Muse input: text only; attachments 0; \(prepared.voiceReply == false ? "text" : "voice") output requested")
+                    _ = try await client.sendText(outgoingText, voiceReply: prepared.voiceReply ?? true, waitForVoiceNote: prepared.askForVoiceNote == true)
                 }
                 while activeRequest == request.id { try await Task.sleep(for: .milliseconds(200)) }
                 await client.disconnect(); connected = false; endBackground()
                 if journal.entries.first(where: { $0.id == request.id })?.recoveryStopped == true { continue }
                 if journal.entries.first(where: { $0.id == request.id })?.delivery != .complete { break }
             } catch {
+                if let issue = error as? VoiceTranscriptionError {
+                    if let index = journal.entries.firstIndex(where: { $0.id == request.id }), journal.entries[index].acceptedID == nil {
+                        journal.entries[index].transcriptionBlocked = true
+                        setDelivery(request.id, .received, detail: issue.localizedDescription)
+                    }
+                    recordAudioDiagnostic("Voice input: \(issue.diagnostic); Muse submission skipped")
+                    activeRequest = nil; status = "Voice note needs attention on iPhone"; changed()
+                    continue // A blocked voice note must not block typed messages or other chats.
+                }
                 if let issue = error as? MuseError, issue.isSavedReplyUnavailable, entry.acceptedID != nil {
                     stopUnavailableRecovery(request.id, issue: issue)
                     await client.disconnect(); continue
@@ -305,6 +373,7 @@ final class PhoneState {
     }
     private func expireBackground() async {
         audioBackgroundExpired = true
+        transcriber.cancel()
         if let id = activeRequest, let entry = journal.entries.first(where: { $0.id == id }) {
             for index in messages.indices where messages[index].requestID == id && messages[index].replyAudioState == .preparing { messages[index].replyAudioState = .unavailable }
             let submitted = entry.acceptedID != nil || [.sending, .accepted].contains(entry.delivery)
@@ -337,7 +406,7 @@ final class PhoneState {
         recordAudioDiagnostic("Audio decoded: \(Int(player.duration)) seconds")
         let audio = try ReplyAudio(data: data, duration: player.duration)
         try data.write(to: replyAudioURL(audio), options: [.atomic, .completeFileProtectionUntilFirstUserAuthentication])
-        messages[index].replyAudio = audio; messages[index].replyAudioState = .ready
+        messages[index].replyAudio = audio; messages[index].replyAudioState = .ready; messages[index].detail = nil
         try persist(); publish()
         _ = sendReplyAudio(ReplyAudioTransfer(account: credentialNodeID ?? "", chatID: messages[index].chatID, messageID: messages[index].id, audio: audio))
     }
@@ -348,7 +417,7 @@ final class PhoneState {
         if activeAudioRequest == request || audioRequests.contains(request) { return true }
         guard audioRequests.count < 20 else { return false }
         audioRequests.append(request)
-        if let index = messages.firstIndex(where: { $0.id == request.messageID }) { messages[index].replyAudioState = .preparing }
+        if let index = messages.firstIndex(where: { $0.id == request.messageID }) { messages[index].replyAudioState = .preparing; messages[index].detail = nil }
         changed(); startProcessing()
         return true
     }
@@ -370,7 +439,11 @@ final class PhoneState {
                 status = "Getting voice reply…"; error = nil; publish()
                 // A cached reply's TTS endpoint needs registration, not a historical chat subscription or another post.
                 try await client.connect(credentials: JSONDecoder().decode(DeviceCredentials.self, from: bytes), sessionID: request.chatID.uuidString.lowercased(), subscribeToChat: false)
-                let data = try await client.replyAudio(messageID: request.messageID)
+                let data: Data
+                if let reference = audioPresentations[request.messageID] {
+                    recordAudioDiagnostic("Audio presentation: fetching workspace media")
+                    data = try await client.replyAudio(presentation: reference)
+                } else { data = try await client.replyAudio(messageID: request.messageID) }
                 guard request.account == credentialNodeID, let index = messages.firstIndex(where: { $0.id == request.messageID && $0.chatID == request.chatID && $0.role == "muse" }) else { throw RelayError.invalid }
                 try cacheReplyAudio(data, at: index)
             } catch {
@@ -378,6 +451,12 @@ final class PhoneState {
                 else { recordAudioDiagnostic("Audio unavailable code \((error as NSError).code)") }
                 if (error as? MuseError) == .rejectedCredentials { paired = false; self.error = "Reconnect your Muse account." }
                 if let index = messages.firstIndex(where: { $0.id == request.messageID && $0.chatID == request.chatID }) { messages[index].replyAudioState = .unavailable }
+                if case ReplyAudioError.http(403) = error, audioPresentations[request.messageID] != nil {
+                    audioPresentations[request.messageID]?.accessDenied = true
+                    if let index = messages.firstIndex(where: { $0.id == request.messageID && $0.chatID == request.chatID }) {
+                        messages[index].detail = "Muse denied this voice-note download (403). Listen in official Muse. Your text is saved."
+                    }
+                }
                 changed()
             }
             await client.disconnect(); connected = false; status = paired ? "Ready for your Watch" : "Reconnect your Muse account"; publish()
@@ -478,7 +557,7 @@ final class PhoneState {
         if let requestURL { try? FileManager.default.removeItem(at: requestURL) }; requestURL = nil
         paired = true; connected = true; credentialNodeID = verified.identity.nodeID
         chats = defaultChats(mainID: UUID(uuidString: sessionID) ?? UUID())
-        messages = []; journal = RelayJournal(); error = nil
+        messages = []; journal = RelayJournal(); audioPresentations = [:]; error = nil
         await client.disconnect(); connected = false; status = "Ready for your Watch"
         try persist(); publish()
     }

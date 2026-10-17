@@ -3,6 +3,84 @@ import CryptoKit
 @testable import MuseCore
 
 final class RelayTests: XCTestCase {
+    func testVoiceTranscriptIsDurableAndCannotFallBackToCaptionOrRepostAcceptedTurn() throws {
+        let voice = RelayRequest(account: "test", chatID: UUID(), text: "Caption is not the transcript", audioSHA256: String(repeating: "a", count: 64), duration: 2)
+        var journal = RelayJournal()
+        try journal.receive(voice)
+        XCTAssertThrowsError(try journal.entries[0].outgoingText())
+        XCTAssertThrowsError(try journal.saveTranscript(" \n ", for: voice.id))
+        try journal.saveTranscript("  Please say hello. \n", for: voice.id)
+        var saved = try JSONDecoder().decode(RelayJournal.self, from: JSONEncoder().encode(journal))
+        XCTAssertEqual(try saved.entries[0].outgoingText(), "Please say hello.")
+        XCTAssertFalse(try saved.receive(voice)) // Transcription never mutates the deduplication request.
+        saved.entries[0].delivery = .sending
+        XCTAssertThrowsError(try saved.saveTranscript("Changed text", for: voice.id))
+        saved.recoverInterrupted(); saved.retryTranscriptions()
+        XCTAssertEqual(saved.entries[0].delivery, .uncertain)
+        XCTAssertFalse(saved.entries[0].canPrepare)
+        saved.entries[0].acceptedID = "synthetic-accepted-message"
+        saved.recoverInterrupted()
+        XCTAssertFalse(saved.entries[0].canPrepare)
+        XCTAssertEqual(saved.entries[0].delivery, .replyUnavailable)
+    }
+    func testBlockedTranscriptionSurvivesRelaunchAndDoesNotBlockTypedRequests() throws {
+        let voice = RelayRequest(account: "test", chatID: UUID(), text: "", audioSHA256: String(repeating: "b", count: 64), duration: 2)
+        let typed = RelayRequest(account: "test", chatID: UUID(), text: "Typed message")
+        var journal = RelayJournal()
+        try journal.receive(voice); try journal.receive(typed)
+        journal.entries[0].transcriptionBlocked = true
+        var restored = try JSONDecoder().decode(RelayJournal.self, from: JSONEncoder().encode(journal))
+        restored.recoverInterrupted()
+        XCTAssertEqual(restored.entries.first(where: \.canPrepare)?.id, typed.id)
+        XCTAssertEqual(try restored.entries[1].outgoingText(), "Typed message")
+        restored.retryTranscriptions()
+        XCTAssertEqual(restored.entries.first(where: \.canPrepare)?.id, voice.id)
+        restored.entries[0].delivery = .connecting
+        try restored.saveTranscript("Recognized speech", for: voice.id)
+        restored.recoverInterrupted()
+        XCTAssertEqual(restored.entries[0].delivery, .received)
+        XCTAssertEqual(try restored.entries[0].outgoingText(), "Recognized speech")
+        // Archives written before transcription remain readable.
+        var raw = try XCTUnwrap(JSONSerialization.jsonObject(with: JSONEncoder().encode(journal)) as? [String: Any])
+        var entries = raw["entries"] as! [[String: Any]]
+        entries[0].removeValue(forKey: "transcript"); entries[0].removeValue(forKey: "transcriptionBlocked"); raw["entries"] = entries
+        let legacy = try JSONDecoder().decode(RelayJournal.self, from: JSONSerialization.data(withJSONObject: raw))
+        XCTAssertNil(legacy.entries[0].transcript)
+        XCTAssertTrue(legacy.entries[0].canPrepare)
+        var upgrade = legacy; upgrade.recoverInterrupted()
+        XCTAssertEqual(upgrade.entries[0].voiceReply, false)
+    }
+    func testTranscriptPayloadContainsOnlyTextInputAndStillRequestsVoiceReply() throws {
+        let body = try TextPayload.body("Please say hello.", deviceID: "test-device", sessionID: "test-chat", voiceReply: true)
+        let object = try XCTUnwrap(JSONSerialization.jsonObject(with: body) as? [String: Any])
+        XCTAssertEqual(Set(object.keys), ["message", "device_id", "session_id", "output_modality"])
+        XCTAssertEqual(object["message"] as? String, "Please say hello.")
+        XCTAssertEqual(object["output_modality"] as? String, "voice")
+        XCTAssertNil(object["items"])
+        let textReply = try TextPayload.body("Please say hello.", deviceID: "test-device", sessionID: "test-chat", voiceReply: false)
+        let textObject = try XCTUnwrap(JSONSerialization.jsonObject(with: textReply) as? [String: Any])
+        XCTAssertEqual(textObject["output_modality"] as? String, "text")
+        XCTAssertNil(textObject["items"])
+        XCTAssertThrowsError(try TextPayload.body("  ", deviceID: "test", sessionID: "test"))
+        XCTAssertThrowsError(try TextPayload.body(String(repeating: "a", count: 16385), deviceID: "test", sessionID: "test"))
+    }
+    func testOptionalVoiceInstructionIsDurableTextAndDoesNotChangeDeduplicationRequest() throws {
+        let request = RelayRequest(account: "test", chatID: UUID(), text: "Please say hello.")
+        var journal = RelayJournal(); try journal.receive(request)
+        journal.entries[0].voiceReply = false; journal.entries[0].askForVoiceNote = true
+        let restored = try JSONDecoder().decode(RelayJournal.self, from: JSONEncoder().encode(journal))
+        XCTAssertEqual(restored.entries[0].voiceReply, false)
+        XCTAssertEqual(restored.entries[0].askForVoiceNote, true)
+        let outgoing = try restored.entries[0].outgoingText()
+        XCTAssertEqual(outgoing, request.text + "\n\n" + JournalEntry.voiceNoteInstruction)
+        let body = try TextPayload.body(outgoing, deviceID: "test", sessionID: "test", voiceReply: false)
+        let object = try XCTUnwrap(JSONSerialization.jsonObject(with: body) as? [String: Any])
+        XCTAssertEqual(object["output_modality"] as? String, "text")
+        XCTAssertNil(object["items"])
+        XCTAssertFalse(try journal.receive(request))
+        journal.entries[0].askForVoiceNote = false
+        XCTAssertEqual(try journal.entries[0].outgoingText(), request.text)
+    }
     func testOnlyScoped404IsAnUnavailableSavedConversation() {
         XCTAssertEqual(MuseError.subscriptionError(status: 404, scoped: true), .conversationUnavailable)
         XCTAssertFalse(MuseError.subscriptionError(status: 404, scoped: false)!.isSavedReplyUnavailable)

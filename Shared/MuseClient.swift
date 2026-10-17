@@ -6,6 +6,7 @@ public enum MuseClientEvent: Sendable {
     case accepted(sessionID: String, messageID: String)
     case reply(id: String, text: String, done: Bool)
     case replyAudio(id: String, data: Data?)
+    case audioPresentation(id: String, reference: MuseAudioPresentation)
     case topic(sessionID: String, title: String)
     case failure(MuseError)
     case finished
@@ -34,6 +35,9 @@ public actor MuseClient {
     private var audioQueue: [String] = []
     private var requestedAudio = Set<String>()
     private var resumingSavedReply = false
+    private var voiceReplyEnabled = true
+    private var waitingForVoiceNote = false
+    private var pendingAudioPresentations: [Data] = []
     private var registration: CheckedContinuation<Void, Error>?
     private var subscription: CheckedContinuation<Void, Error>?
     private var timeoutTasks: [Task<Void, Never>] = []
@@ -51,10 +55,12 @@ public actor MuseClient {
         let stream = AsyncStream<MuseClientEvent>.makeStream(bufferingPolicy: .bufferingNewest(128))
         events = stream.stream; sink = stream.continuation
     }
-    public func connect(credentials value: DeviceCredentials, sessionID: String, credentialAccount: String = "device-credentials", existingChat: Bool = false, resumeAcceptedMessageID: String? = nil, subscribeToChat: Bool = true) async throws {
+    public func connect(credentials value: DeviceCredentials, sessionID: String, credentialAccount: String = "device-credentials", existingChat: Bool = false, resumeAcceptedMessageID: String? = nil, subscribeToChat: Bool = true, voiceReply: Bool = false, waitForVoiceNote: Bool = false) async throws {
         guard !connecting else { throw MuseError.network("A connection attempt is already running.") }
         await disconnect(); connecting = true; defer { connecting = false }
         self.credentialAccount = credentialAccount
+        voiceReplyEnabled = voiceReply
+        waitingForVoiceNote = waitForVoiceNote
         resumingSavedReply = resumeAcceptedMessageID != nil
         try value.validate(); self.credentials = value; self.sessionID = sessionID
         if let id = resumeAcceptedMessageID {
@@ -121,6 +127,9 @@ public actor MuseClient {
     }
     public func currentCredentials() -> DeviceCredentials? { credentials }
     public func replyAudio(messageID: String) async throws -> Data { try await fetchSpeech(messageID) }
+    public func replyAudio(presentation: MuseAudioPresentation) async throws -> Data {
+        try await fetchAudio(path: presentation.fetchPath(), accept: presentation.mime, allowContainers: true)
+    }
     public func usePairedCredentialStore() { credentialAccount = "device-credentials" }
     public func refreshCredentials() async throws {
         guard !activeTurn, !connecting, let credentials else { throw MuseError.network("Finish the current request before testing credential refresh.") }
@@ -135,7 +144,7 @@ public actor MuseClient {
     public func disconnect(reason: MuseError = .interrupted) async {
         connectionID = UUID(); reader?.cancel(); reader = nil
         settleTask?.cancel(); settleTask = nil; pingTask?.cancel(); pingTask = nil; retiredMessages = []
-        audioWorker?.cancel(); audioWorker = nil; audioQueue = []; requestedAudio = []
+        audioWorker?.cancel(); audioWorker = nil; audioQueue = []; requestedAudio = []; pendingAudioPresentations = []
         for value in speech.values { value.continuation.resume(throwing: reason) }; speech = [:]
         socket?.cancel(with: .normalClosure, reason: nil); socket = nil
         network?.invalidateAndCancel(); network = nil; transport = nil
@@ -198,9 +207,11 @@ public actor MuseClient {
         // Open the new listener before closing the old stream.
         if old != 0 { try await write(transport.reset(stream: old)) }
     }
-    public func sendText(_ text: String) async throws -> String {
+    public func sendText(_ text: String, voiceReply: Bool = false, waitForVoiceNote: Bool = false) async throws -> String {
         guard let credentials, !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty, text.utf8.count <= 16384 else { throw MuseError.invalid("Enter a message of up to 16 KiB.") }
-        return try await post(try jsonData(["message": text, "output_modality": "voice", "device_id": credentials.identity.nodeID, "session_id": sessionID]))
+        voiceReplyEnabled = voiceReply
+        waitingForVoiceNote = waitForVoiceNote
+        return try await post(TextPayload.body(text, deviceID: credentials.identity.nodeID, sessionID: sessionID, voiceReply: voiceReply))
     }
     public func sendVoice(_ data: Data, text: String = "") async throws -> String {
         guard let credentials else { throw MuseError.interrupted }
@@ -208,7 +219,7 @@ public actor MuseClient {
     }
     private func post(_ body: Data) async throws -> String {
         guard !activeTurn, let transport, socket != nil else { throw MuseError.network("Connect to Muse and finish the current turn first.") }
-        activeTurn = true; turnID = UUID(); busyActivity = false; runningTasks = []
+        activeTurn = true; turnID = UUID(); busyActivity = false; runningTasks = []; pendingAudioPresentations = []
         turn = TurnAccumulator(sessionID: sessionID, retiredMessageIDs: retiredMessages)
         let multipart = body.count > 64 * 1024
         let request = try transport.request(path: "/chat/stream", body: multipart ? Data() : body, streaming: multipart, headers: [("Content-Type", "application/json"), ("x-request-id", UUID().uuidString), ("x-app-id", "musegadget")])
@@ -226,6 +237,8 @@ public actor MuseClient {
             if let acceptedID = turn?.acknowledgedID { sink.yield(.accepted(sessionID: sessionID, messageID: acceptedID)) }
             emitTopic(acknowledgement)
             for reply in buffered { emit(reply) }
+            let presentations = pendingAudioPresentations; pendingAudioPresentations = []
+            for data in presentations { if let event = try? jsonObject(data) { emitAudioPresentation(event) } }
             // A new side chat exists only after its first acknowledged post.
             // Switch promptly to its scoped listener, then retire the old stream.
             if subscribedSessionID != sessionID { try await subscribe(sessionID: sessionID) }
@@ -343,6 +356,11 @@ public actor MuseClient {
                         }
                     }
                     for reply in try turn?.feed(event) ?? [] { emit(reply) }
+                    if matches, activeTurn, name == "delta.presentation" {
+                        if turn?.acknowledgedID == nil {
+                            if pendingAudioPresentations.count < 8, let data = try? jsonData(event), data.count <= 131072 { pendingAudioPresentations.append(data) }
+                        } else { emitAudioPresentation(event) }
+                    }
                 }
             }
             if packet.ended { throw MuseError.network("Muse closed the chat subscription.") }
@@ -356,9 +374,15 @@ public actor MuseClient {
             } else { pending[packet.streamID] = request }
         }
     }
+    private func emitAudioPresentation(_ event: [String: Any]) {
+        guard turn?.acceptsAudioPresentation(event) == true, let payload = event["payload"] as? [String: Any],
+              let id = payload["message_id"] as? String, let reference = try? MuseAudioPresentation(payload: payload) else { return }
+        sink.yield(.diagnostic("Audio presentation: \(reference.mimeLabel); \(reference.pathKind); resources \(reference.resources != nil)"))
+        sink.yield(.audioPresentation(id: id, reference: reference))
+    }
     private func emit(_ reply: TurnAccumulator.Reply) {
         sink.yield(.reply(id: reply.id, text: reply.text, done: reply.done))
-        if reply.done, requestedAudio.insert(reply.id).inserted {
+        if reply.done, voiceReplyEnabled, requestedAudio.insert(reply.id).inserted {
             audioQueue.append(reply.id)
             if audioWorker == nil {
                 let epoch = connectionID
@@ -389,22 +413,25 @@ public actor MuseClient {
         let paths = try ReplyAudio.paths(messageID: id)
         for (index, path) in paths.enumerated() {
             do {
-                guard let transport else { throw MuseError.interrupted }
-                let request = try transport.request(path: path, headers: [("Accept", "audio/mpeg"), ("x-app-id", "musegadget"), ("x-request-id", UUID().uuidString)], method: "GET")
-                return try await withCheckedThrowingContinuation { continuation in
-                    speech[request.id] = SpeechPending(continuation: continuation)
-                    timeoutTasks.append(Task { [weak self] in
-                        do { try await self?.write(request.frames) }
-                        catch { await self?.expireSpeech(request.id) }
-                    })
-                    timeoutTasks.append(Task { [weak self] in
-                        do { try await Task.sleep(for: .seconds(25)) } catch { return }
-                        await self?.expireSpeech(request.id)
-                    })
-                }
+                return try await fetchAudio(path: path, accept: "audio/mpeg", allowContainers: false)
             } catch ReplyAudioError.http(404) where index == 0 { sink.yield(.diagnostic("Audio legacy fallback")); continue }
         }
         throw ReplyAudioError.incomplete
+    }
+    private func fetchAudio(path: String, accept: String, allowContainers: Bool) async throws -> Data {
+        guard let transport else { throw MuseError.interrupted }
+        let request = try transport.request(path: path, headers: [("Accept", accept), ("x-app-id", "musegadget"), ("x-request-id", UUID().uuidString)], method: "GET")
+        return try await withCheckedThrowingContinuation { continuation in
+            speech[request.id] = SpeechPending(response: ReplyAudioResponse(allowContainers: allowContainers), continuation: continuation)
+            timeoutTasks.append(Task { [weak self] in
+                do { try await self?.write(request.frames) }
+                catch { await self?.expireSpeech(request.id) }
+            })
+            timeoutTasks.append(Task { [weak self] in
+                do { try await Task.sleep(for: .seconds(25)) } catch { return }
+                await self?.expireSpeech(request.id)
+            })
+        }
     }
     private func expireSpeech(_ id: UInt64) {
         guard let request = speech.removeValue(forKey: id) else { return }
@@ -423,8 +450,9 @@ public actor MuseClient {
         settleTask?.cancel()
         guard audioWorker == nil, audioQueue.isEmpty, !busyActivity, runningTasks.isEmpty, turn?.allRepliesComplete == true else { return }
         let id = turnID
+        let delay = waitingForVoiceNote ? 15 : 3
         settleTask = Task { [weak self] in
-            do { try await Task.sleep(for: .seconds(3)) } catch { return }
+            do { try await Task.sleep(for: .seconds(delay)) } catch { return }
             await self?.settle(id)
         }
     }
