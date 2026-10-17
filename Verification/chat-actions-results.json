@@ -1,0 +1,20 @@
+{
+  "date": "2026-10-17",
+  "protocolTestsPassed": 35,
+  "watchModelChecksPassed": true,
+  "signedDebugBuildPassed": true,
+  "unsignedReleaseBuildPassed": true,
+  "physicalWatchInstalled": true,
+  "physicalPhoneInstalled": true,
+  "rightSwipePinObserved": true,
+  "rightSwipeUnpinObserved": true,
+  "pinnedRowIndicatorObserved": true,
+  "leftSwipePinAndDeleteMenuObserved": true,
+  "deleteConfirmationObserved": true,
+  "emptyLocalTestChatRemoved": true,
+  "removalSurvivedUpdateAndRelaunch": true,
+  "existingConversationsDeleted": 0,
+  "liveMuseMessagesPosted": 0,
+  "deletionScope": "Watch chat list and Saved messages only; phone/Muse copies and recording files preserved",
+  "offlineDurabilityAndAccountIsolation": "Passed synthetic persistence, sync, relaunch, blocked pending/draft deletion, rollback, and legacy archive checks"
+}

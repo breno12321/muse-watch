@@ -22,8 +22,8 @@ struct HomeView: View {
                     Text("To \(store.conversation(id)?.title ?? "your chat")")
                         .font(.caption2).foregroundStyle(MuseStyle.secondary).lineLimit(1)
                 } else {
-                    Text("Open Muse Watch on your iPhone to connect.").font(.caption2).foregroundStyle(MuseStyle.secondary).multilineTextAlignment(.center)
-                    Button("Sync with iPhone") { store.refresh() }.buttonStyle(.borderedProminent)
+                    Text(store.paired ? "Open Chats to start a new conversation." : "Open Muse Watch on your iPhone to connect.").font(.caption2).foregroundStyle(MuseStyle.secondary).multilineTextAlignment(.center)
+                    if !store.paired { Button("Sync with iPhone") { store.refresh() }.buttonStyle(.borderedProminent) }
                 }
                 NavigationLink { ChatsView() } label: {
                     Label("Chats", systemImage: "bubble.left.and.bubble.right").frame(maxWidth: .infinity)
@@ -64,26 +64,46 @@ struct HomeView: View {
 struct ChatsView: View {
     @Environment(MuseStore.self) private var store
     @State private var destination: ComposerRoute?
-    private var chats: [Conversation] {
-        store.conversations.sorted {
-            if ($0.id == store.activeChatID) != ($1.id == store.activeChatID) { return $0.id == store.activeChatID }
-            return ($0.messages.last?.date ?? .distantPast) > ($1.messages.last?.date ?? .distantPast)
-        }
-    }
+    @State private var deleting: Conversation?
     var body: some View {
         List {
             Button {
                 if let id = store.createChat() { destination = ComposerRoute(id: id) }
             } label: { Label("New chat", systemImage: "plus.bubble") }
                 .disabled(!store.paired).accessibilityIdentifier("newChat")
-            ForEach(chats) { chat in
+            ForEach(store.orderedChats) { chat in
                 NavigationLink { ChatView(id: chat.id) } label: {
-                    MuseRow(title: chat.title, subtitle: chat.messages.last?.text ?? "Start with a voice note", symbol: chat.symbol)
+                    MuseRow(title: chat.title, subtitle: chat.messages.last?.text ?? "Start with a voice note", symbol: store.isPinned(chat.id) ? "pin.fill" : chat.symbol)
                 }.listRowBackground(MuseStyle.bubble)
+                .swipeActions(edge: .leading, allowsFullSwipe: false) {
+                    pinButton(chat)
+                }
+                .swipeActions(edge: .trailing, allowsFullSwipe: false) {
+                    deleteButton(chat)
+                    pinButton(chat)
+                }
             }
         }.navigationTitle("Chats")
         .watchEdgeBack()
         .navigationDestination(item: $destination) { route in ChatView(id: route.id) }
+        .confirmationDialog("Delete chat from Watch?", isPresented: Binding(get: { deleting != nil }, set: { if !$0 { deleting = nil } }), titleVisibility: .visible, presenting: deleting) { chat in
+            Button("Delete from Watch", role: .destructive) { store.deleteChat(chat.id); deleting = nil }
+            Button("Cancel", role: .cancel) { deleting = nil }
+        } message: { _ in
+            Text("Your iPhone and Muse copies stay available.")
+        }
+    }
+    private func pinButton(_ chat: Conversation) -> some View {
+        Button { store.togglePinned(chat.id) } label: {
+            Label(store.isPinned(chat.id) ? "Unpin" : "Pin", systemImage: store.isPinned(chat.id) ? "pin.slash" : "pin")
+        }.tint(.orange).accessibilityIdentifier("pinChat")
+    }
+    private func deleteButton(_ chat: Conversation) -> some View {
+        Button(role: .destructive) {
+            if let reason = store.deletionBlockReason(chat.id) { store.error = reason }
+            else { deleting = chat }
+        } label: { Label("Delete", systemImage: "trash") }
+            .accessibilityIdentifier("deleteChat")
     }
 }
 

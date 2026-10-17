@@ -4,7 +4,13 @@ Device screenshots and Bluetooth logs are kept locally and excluded from Git. Th
 
 **The live Muse Watch app is implemented and installed on the physical iPhone and Apple Watch. Real Watch text and microphone audio reached Muse, and real replies returned to both devices. A first message in a new Ideas conversation also completed and synced to the Watch.** Pairing, credential refresh, and reconnect were previously verified with this account. The older stages below are chronological records, superseded by the final results here.
 
-## Voice replies and editable chat names — latest update
+## Watch pin/delete swipe actions — latest update
+
+Watch Chats uses native row swipe actions: right reveals Pin/Unpin; left reveals both Delete and Pin/Unpin. Pins sort before other chats and show a pin symbol. Delete asks for confirmation, then removes the chat from Watch Chats and Saved messages. Local deletion markers survive phone snapshots and relaunch. These are Watch preferences; no remote Muse deletion endpoint is called, and phone/Muse copies and recording files are retained. Drafts and pending messages block deletion with an explanation. Removing the selected or last chat leaves a valid route to the next chat or Chats → New chat. Preferences reset on account change; legacy archives remain readable. Failed writes roll back the action.
+
+All 35 protocol tests and Watch model checks passed, including ordering, unpin, offline deletion/sync/relaunch, selection, last-chat replacement, draft/outbox/sending guards, disk-write rollback, and archive/account isolation. Signed Debug and unsigned Release builds passed. Final apps were installed on physical iPhone and Watch. Observed right-swipe Pin/Unpin, the pinned row symbol, the final left-swipe menu with both icons, and deletion confirmation. Created one empty local chat, deleted only that test chat, and verified it stayed absent after update/relaunch. Existing conversations were preserved and no Muse messages were posted. Native Back navigation was observed during the checks. Content-free results: [chat-actions-results.json](chat-actions-results.json).
+
+## Voice replies and editable chat names — previous update
 
 Requested voice-modality replies using the pinned SDK's request format. Completed assistant messages fetch bounded MP3 via encrypted `GET /api/voice/tts-stream`, with the documented legacy fallback after HTTP 404. TTS failures are isolated from text delivery. Complete decoded files are cached on iPhone and transferred with account/chat/message scope and SHA-256. Watch caches them before displaying Play/Pause/progress; text remains visible. A missing copy can be synced. Older replies can request read-only audio retrieval without a historical subscription or reposting a user message. Playback uses Apple's long-form speaker/headphone routing, without auto-play.
 
