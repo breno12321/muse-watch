@@ -173,6 +173,10 @@ public struct RelayMessage: Codable, Equatable, Sendable, Identifiable {
     public var detail: String?
     public var replyAudio: ReplyAudio?
     public var replyAudioState: ReplyAudioState?
+    public var replyComplete: Bool?
+    public var localSpeech: LocalSpeechStatus?
+    /// Full text identity survives a compact snapshot's display-text truncation.
+    public var speechTextHash: String?
     public init(id: String, requestID: UUID? = nil, chatID: UUID, role: String, text: String, date: Date = .now, duration: Double? = nil, delivery: Delivery? = nil, detail: String? = nil) {
         self.id = id; self.requestID = requestID; self.chatID = chatID; self.role = role; self.text = text; self.date = date; self.duration = duration; self.delivery = delivery; self.detail = detail
     }
@@ -189,6 +193,7 @@ public struct RelaySnapshot: Codable, Sendable {
     public var chats: [RelayChat]
     public var messages: [RelayMessage]
     public var updatedAt: Date
+    public var speechVersion: String? = nil
     public func contextData(for request: ChatRefreshRequest) throws -> Data {
         guard paired, !request.account.isEmpty, request.account == account,
               chats.contains(where: { $0.id == request.chatID }) else { throw RelayError.invalid }
@@ -199,7 +204,10 @@ public struct RelaySnapshot: Codable, Sendable {
     public func contextData() throws -> Data {
         var compact = withActivityDates()
         compact.messages = Array(messages.suffix(80))
-        for i in compact.messages.indices { compact.messages[i].text = String(compact.messages[i].text.prefix(8000)) }
+        for i in compact.messages.indices {
+            compact.messages[i].speechTextHash = LocalSpeechRequest.hash(compact.messages[i].text)
+            compact.messages[i].text = String(compact.messages[i].text.prefix(8000))
+        }
         var data = try JSONEncoder().encode(compact)
         while data.count > 55000, compact.messages.count > 1 {
             compact.messages.removeFirst(); data = try JSONEncoder().encode(compact)

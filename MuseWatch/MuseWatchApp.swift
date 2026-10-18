@@ -22,6 +22,7 @@ struct RootView: View {
     var body: some View {
         NavigationStack { HomeView() }
         .task { store.refresh() }
+        .onChange(of: audio.playbackFile) { _, file in store.protectedSpeechFile = file }
         .onChange(of: audio.finishedDraft?.file) { _, _ in
             if let draft = audio.finishedDraft { store.keepDraft(draft); audio.finishedDraft = nil }
         }

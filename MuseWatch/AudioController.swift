@@ -16,6 +16,7 @@ final class AudioController: NSObject, AVAudioRecorderDelegate, AVAudioPlayerDel
     private var recorder: AVAudioRecorder?
     private var player: AVAudioPlayer?
     private var pausedFile: String?
+    var playbackFile: String? { playingFile ?? pausedFile }
     private var playbackMeter: Task<Void, Never>?
     private var playbackGeneration = UUID()
     private var recordingGeneration = UUID()

@@ -13,6 +13,12 @@ struct Message: Identifiable, Codable, Equatable {
     var detail: String?
     var replyAudio: ReplyAudio? = nil
     var replyAudioState: ReplyAudioState? = nil
+    var replyComplete: Bool? = nil
+    var localSpeech: LocalSpeechStatus? = nil
+    var speechFile: String? = nil
+    var speechTextHash: String? = nil
+    var speechPending: LocalSpeechRequest? = nil
+    var speechRejected = false
 }
 struct Conversation: Identifiable, Equatable {
     let id: UUID

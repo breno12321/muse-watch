@@ -25,6 +25,11 @@ final class MuseStore {
     private var pinnedChatIDs = Set<UUID>()
     private var deletedChatIDs = Set<UUID>()
     private var pendingRenames: [UUID: ChatRename] = [:]
+    private var pendingSpeech: [String: LocalSpeechRequest] = [:]
+    private var rejectedSpeech = Set<UUID>()
+    private var speechSentAt: [UUID: Date] = [:]
+    var protectedSpeechFile: String?
+    var speechAvailable: Bool { snapshot?.speechVersion == LocalSpeechRequest.currentVersion }
     private var replyAudioFiles: [String: ReplyAudioTransfer] = [:]
     private var bookmarks = Set<String>()
     private var audioFiles: [String: String] = [:]
@@ -35,6 +40,8 @@ final class MuseStore {
         var replyAudioFiles: [String: ReplyAudioTransfer]?
         var pinnedChatIDs: Set<UUID>?; var deletedChatIDs: Set<UUID>?
         var pendingRenames: [UUID: ChatRename]?
+        var pendingSpeech: [String: LocalSpeechRequest]?
+        var rejectedSpeech: Set<UUID>?
     }
     init(directory: URL? = nil, connectivity: Bool = true, relay suppliedRelay: RelayConnectivity? = nil) {
         self.directory = directory ?? FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
@@ -49,11 +56,16 @@ final class MuseStore {
                 replyAudioFiles = saved.replyAudioFiles ?? [:]
                 pinnedChatIDs = saved.pinnedChatIDs ?? []; deletedChatIDs = saved.deletedChatIDs ?? []
                 pendingRenames = saved.pendingRenames ?? [:]
+                pendingSpeech = saved.pendingSpeech ?? [:]; rejectedSpeech = saved.rejectedSpeech ?? []
                 rebuild()
             }
         } catch { canPersist = false; self.error = "Your saved Watch history could not be opened. It has been preserved." }
         relay?.onSnapshot = { [weak self] value in self?.receive(value) }
         relay?.onStatus = { [weak self] value in self?.phoneReachable = value; self?.flush() }
+        relay?.onSpeechReceipt = { [weak self] id, accepted in
+            guard let self else { return }
+            if !accepted { self.rejectedSpeech.insert(id); self.persist(); self.rebuild() }
+        }
         relay?.onReceipt = { [weak self] id in self?.acknowledgePhone(id) }
         relay?.onReplyAudio = { [weak self] asset, url in self?.receiveReplyAudio(asset, from: url) }
         relay?.onAsset = { [weak self] kind, url, account in
@@ -101,7 +113,18 @@ final class MuseStore {
             outbox = []; bookmarks = []; audioFiles = [:]; draft = nil; snapshot = nil; localChats = []; selectedChatID = nil; replyAudioFiles = [:]
             pinnedChatIDs = []; deletedChatIDs = []
             pendingRenames = [:]
+            pendingSpeech = [:]; rejectedSpeech = []; speechSentAt = [:]
             try? FileManager.default.removeItem(at: avatarURL); avatarVersion = UUID()
+        }
+        for message in value.messages {
+            if let pending = pendingSpeech[message.id], pending.textHash != (message.speechTextHash ?? LocalSpeechRequest.hash(message.text)) {
+                rejectedSpeech.insert(pending.id); relay?.finishSpeechTransfer(pending.id)
+            }
+            if let pending = pendingSpeech[message.id], let acknowledged = message.localSpeech,
+               acknowledged.request.revision >= pending.revision {
+                relay?.finishSpeechTransfer(pending.id)
+                pendingSpeech.removeValue(forKey: message.id); rejectedSpeech.remove(pending.id)
+            }
         }
         var incoming = value
         pendingRenames = pendingRenames.filter { id, edit in
@@ -125,7 +148,19 @@ final class MuseStore {
             Conversation(id: chat.id, title: pendingRenames[chat.id]?.title ?? chat.displayTitle, symbol: chat.symbol, messages: snapshot.messages.filter { $0.chatID == chat.id }.map { value in
                 let asset = value.replyAudio.flatMap { replyAudioFiles[$0.id.uuidString] }
                 let cached = value.role == "muse" && asset?.account == snapshot.account && asset?.chatID == chat.id && asset?.messageID == value.id && asset?.audio == value.replyAudio && asset.map { FileManager.default.fileExists(atPath: audioURL($0.audio.filename).path) } == true
-                return Message(id: value.id, role: value.role == "user" ? .user : .muse, text: value.text, date: value.date, audioFile: value.role == "user" ? value.requestID.flatMap { audioFiles[$0.uuidString] } : (cached ? value.replyAudio?.filename : nil), duration: value.role == "muse" ? value.replyAudio?.duration : value.duration, saved: bookmarks.contains(value.id), delivery: value.delivery, detail: value.detail, replyAudio: value.replyAudio, replyAudioState: value.replyAudio == nil ? value.replyAudioState : (cached ? .ready : .preparing))
+                var speech = value.localSpeech.flatMap { $0.request.textHash == (value.speechTextHash ?? LocalSpeechRequest.hash(value.text)) ? $0 : nil }
+                let speechRequest = pendingSpeech[value.id] ?? speech?.request
+                let spokenAsset = replyAudioFiles.values.first { asset in
+                    guard let request = asset.speechRequest else { return false }
+                    return request == speechRequest && asset.account == snapshot.account && asset.chatID == chat.id && asset.messageID == value.id
+                        && request.textHash == (value.speechTextHash ?? LocalSpeechRequest.hash(value.text))
+                        && FileManager.default.fileExists(atPath: audioURL(asset.audio.filename).path)
+                }
+                let speechCached = spokenAsset != nil
+                if let spokenAsset, let request = spokenAsset.speechRequest { speech = LocalSpeechStatus(request: request, phase: .ready, audio: spokenAsset.audio) }
+                return Message(id: value.id, role: value.role == "user" ? .user : .muse, text: value.text, date: value.date, audioFile: value.role == "user" ? value.requestID.flatMap { audioFiles[$0.uuidString] } : (cached ? value.replyAudio?.filename : nil), duration: value.role == "muse" ? value.replyAudio?.duration : value.duration, saved: bookmarks.contains(value.id), delivery: value.delivery, detail: value.detail, replyAudio: value.replyAudio, replyAudioState: value.replyAudio == nil ? value.replyAudioState : (cached ? .ready : .preparing), replyComplete: value.replyComplete,
+                    localSpeech: speech, speechFile: speechCached ? spokenAsset?.audio.filename : nil, speechTextHash: value.speechTextHash,
+                    speechPending: speechCached ? nil : pendingSpeech[value.id], speechRejected: pendingSpeech[value.id].map { rejectedSpeech.contains($0.id) } ?? false)
             }, earlier: chat.isLegacyStarter && pendingRenames[chat.id] == nil, activityDate: chat.activityDate)
         }
     }
@@ -134,18 +169,62 @@ final class MuseStore {
     }
     private func save() throws {
         guard canPersist else { throw RelayError.invalid }
-        try JSONEncoder().encode(Saved(snapshot: snapshot, outbox: outbox, bookmarks: bookmarks, audioFiles: audioFiles, draft: draft, localChats: localChats, selectedChatID: selectedChatID, replyAudioFiles: replyAudioFiles, pinnedChatIDs: pinnedChatIDs, deletedChatIDs: deletedChatIDs, pendingRenames: pendingRenames)).write(to: file, options: [.atomic, .completeFileProtectionUntilFirstUserAuthentication])
+        try JSONEncoder().encode(Saved(snapshot: snapshot, outbox: outbox, bookmarks: bookmarks, audioFiles: audioFiles, draft: draft, localChats: localChats, selectedChatID: selectedChatID, replyAudioFiles: replyAudioFiles, pinnedChatIDs: pinnedChatIDs, deletedChatIDs: deletedChatIDs, pendingRenames: pendingRenames, pendingSpeech: pendingSpeech, rejectedSpeech: rejectedSpeech)).write(to: file, options: [.atomic, .completeFileProtectionUntilFirstUserAuthentication])
     }
     func receiveReplyAudio(_ asset: ReplyAudioTransfer, from url: URL) {
         defer { try? FileManager.default.removeItem(at: url) }
         guard canPersist, asset.account == snapshot?.account else { return }
         do {
             let data = try Data(contentsOf: url); try asset.validate(data)
-            if let old = replyAudioFiles[asset.audio.id.uuidString], old != asset { throw RelayError.duplicate }
+            if let request = asset.speechRequest {
+                guard let message = snapshot?.messages.first(where: { $0.id == asset.messageID && $0.chatID == asset.chatID }),
+                      request.textHash == (message.speechTextHash ?? LocalSpeechRequest.hash(message.text)),
+                      message.replyComplete == true,
+                      request == (pendingSpeech[message.id] ?? message.localSpeech?.request) else { throw RelayError.invalid }
+            }
+            if let old = replyAudioFiles[asset.audio.id.uuidString], old != asset {
+                guard let newer = asset.speechRequest, let previous = old.speechRequest,
+                      newer.cacheKey == previous.cacheKey, newer.revision > previous.revision, asset.audio == old.audio else { throw RelayError.duplicate }
+            }
             try data.write(to: audioURL(asset.audio.filename), options: [.atomic, .completeFileProtectionUntilFirstUserAuthentication])
             replyAudioFiles[asset.audio.id.uuidString] = asset
-            rebuild(); persist()
+            if let request = asset.speechRequest, let index = snapshot?.messages.firstIndex(where: { $0.id == asset.messageID && $0.chatID == asset.chatID }) {
+                snapshot?.messages[index].localSpeech = LocalSpeechStatus(request: request, phase: .ready, audio: asset.audio)
+                pendingSpeech.removeValue(forKey: asset.messageID); rejectedSpeech.remove(request.id); relay?.finishSpeechTransfer(request.id)
+            }
+            pruneGeneratedSpeech(); rebuild(); persist()
         } catch { self.error = "Couldn’t save this voice reply. Sync with your iPhone to try again." }
+    }
+    func generateSpeech(_ message: Message, in chatID: UUID) {
+        guard canPersist, paired, speechAvailable, message.role == .muse, message.replyComplete == true,
+              let account = snapshot?.account, let canonical = snapshot?.messages.first(where: { $0.id == message.id && $0.chatID == chatID && $0.replyComplete == true }) else { return }
+        if let pending = pendingSpeech[message.id], !rejectedSpeech.contains(pending.id) { return }
+        let previous = pendingSpeech[message.id]
+        let revision = max(canonical.localSpeech?.request.revision ?? 0, previous?.revision ?? 0)
+        guard revision < Int.max - 1 else { return }
+        let request = LocalSpeechRequest(account: account, chatID: chatID, messageID: message.id,
+            textHash: canonical.speechTextHash ?? LocalSpeechRequest.hash(canonical.text), revision: revision + 1)
+        pendingSpeech[message.id] = request
+        do { try save() }
+        catch { pendingSpeech[message.id] = previous; self.error = "Couldn’t save the audio request."; return }
+        if let previous { rejectedSpeech.remove(previous.id); relay?.finishSpeechTransfer(previous.id) }
+        rebuild(); flush()
+    }
+    func retryPendingSpeech(_ message: Message) {
+        guard let request = pendingSpeech[message.id], canPersist, paired else { return }
+        // Uncertain receipt retries the exact same durable request, never a second generation.
+        try? relay?.enqueueSpeech(request)
+    }
+    private func pruneGeneratedSpeech() {
+        let generated = replyAudioFiles.values.filter { $0.speechRequest != nil }.sorted {
+            let first = (try? audioURL($0.audio.filename).resourceValues(forKeys: [.contentModificationDateKey]).contentModificationDate) ?? .distantPast
+            let second = (try? audioURL($1.audio.filename).resourceValues(forKeys: [.contentModificationDateKey]).contentModificationDate) ?? .distantPast
+            return first > second
+        }
+        for asset in generated.dropFirst(20) where asset.audio.filename != protectedSpeechFile {
+            try? FileManager.default.removeItem(at: audioURL(asset.audio.filename))
+            replyAudioFiles.removeValue(forKey: asset.audio.id.uuidString)
+        }
     }
     func requestReplyAudio(_ message: Message, in chatID: UUID) {
         guard let account = snapshot?.account, message.role == .muse else { return }
@@ -251,6 +330,11 @@ final class MuseStore {
     }
     private func flush() {
         guard paired, canPersist, let relay else { return }
+        for request in pendingSpeech.values where !rejectedSpeech.contains(request.id) {
+            if Date().timeIntervalSince(speechSentAt[request.id] ?? .distantPast) >= 5 {
+                do { try relay.enqueueSpeech(request); speechSentAt[request.id] = .now } catch { /* Saved until activation. */ }
+            }
+        }
         for edit in pendingRenames.values { try? relay.enqueueRename(edit) }
         for request in outbox {
             do {

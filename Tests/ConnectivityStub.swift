@@ -6,6 +6,10 @@ import Foundation
     var onReceipt: ((UUID) -> Void)?
     var onAsset: ((String, URL, String) -> Void)?
     var onReplyAudio: ((ReplyAudioTransfer, URL) -> Void)?
+    var onSpeechReceipt: ((UUID, Bool) -> Void)?
+    var speechRequests: [LocalSpeechRequest] = []
+    func enqueueSpeech(_ request: LocalSpeechRequest) throws { speechRequests.append(request) }
+    func finishSpeechTransfer(_ id: UUID) {}
     func requestReplyAudio(_ asset: ReplyAudioRequest) {}
     func enqueueRename(_ edit: ChatRename) throws {}
     var requestedChats: [ChatRefreshRequest] = []

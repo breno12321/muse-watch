@@ -1,0 +1,911 @@
+{
+  "date": "2026-10-17",
+  "debugger": false,
+  "phone": "iPhone 17 Pro / iOS 27.0",
+  "phoneLocked": false,
+  "pipelineVersion": "v1 before Portuguese punctuation correction",
+  "runs": [
+    {
+      "backgroundAtFinish": true,
+      "backgroundAtStart": true,
+      "elapsedMS": 7555.07493019104,
+      "metrics": {
+        "audioSeconds": 3.8,
+        "cached": false,
+        "caseID": "af_heart-01",
+        "chunks": 2,
+        "completed": true,
+        "generationMS": 7544.67499256134,
+        "language": "en-US",
+        "loadMS": 0,
+        "stages": [
+          {
+            "albertMs": 261.7969512939453,
+            "alignmentMs": 5.422115325927734,
+            "cpuFallbackStages": [],
+            "noiseMs": 144.15502548217773,
+            "postAlbertMs": 13.31794261932373,
+            "prosodyMs": 8.157968521118164,
+            "tailMs": 1546.6970205307007,
+            "vocoderMs": 203.06801795959473
+          },
+          {
+            "albertMs": 1480.9859991073608,
+            "alignmentMs": 4.915952682495117,
+            "cpuFallbackStages": [],
+            "noiseMs": 593.6559438705444,
+            "postAlbertMs": 25.714993476867676,
+            "prosodyMs": 14.421939849853516,
+            "tailMs": 2495.4670667648315,
+            "vocoderMs": 669.0539121627808
+          }
+        ],
+        "voice": "af_heart"
+      },
+      "peakRSSBytes": 442974208,
+      "thermalState": 0,
+      "watch": {
+        "elapsedMS": "8559",
+        "reason": "audio transferred",
+        "success": "true"
+      }
+    },
+    {
+      "backgroundAtFinish": true,
+      "backgroundAtStart": true,
+      "elapsedMS": 9613.324999809265,
+      "metrics": {
+        "audioSeconds": 6.225,
+        "cached": false,
+        "caseID": "af_heart-02",
+        "chunks": 2,
+        "completed": true,
+        "generationMS": 9573.581099510193,
+        "language": "en-US",
+        "loadMS": 0,
+        "stages": [
+          {
+            "albertMs": 1025.1199007034302,
+            "alignmentMs": 38.742899894714355,
+            "cpuFallbackStages": [],
+            "noiseMs": 715.6369686126709,
+            "postAlbertMs": 32.96101093292236,
+            "prosodyMs": 18.5239315032959,
+            "tailMs": 2935.72199344635,
+            "vocoderMs": 1117.3800230026245
+          },
+          {
+            "albertMs": 561.3340139389038,
+            "alignmentMs": 3.5240650177001953,
+            "cpuFallbackStages": [],
+            "noiseMs": 480.5179834365845,
+            "postAlbertMs": 19.530057907104492,
+            "prosodyMs": 15.784025192260742,
+            "tailMs": 1976.417064666748,
+            "vocoderMs": 575.9259462356567
+          }
+        ],
+        "voice": "af_heart"
+      },
+      "peakRSSBytes": 503136256,
+      "thermalState": 0,
+      "watch": {
+        "elapsedMS": "10533",
+        "reason": "audio transferred",
+        "success": "true"
+      }
+    },
+    {
+      "backgroundAtFinish": true,
+      "backgroundAtStart": true,
+      "elapsedMS": 6066.75398349762,
+      "metrics": {
+        "audioSeconds": 3.8,
+        "cached": false,
+        "caseID": "af_heart-01",
+        "chunks": 2,
+        "completed": true,
+        "generationMS": 6058.187007904053,
+        "language": "en-US",
+        "loadMS": 0,
+        "stages": [
+          {
+            "albertMs": 269.4709300994873,
+            "alignmentMs": 1.6440153121948242,
+            "cpuFallbackStages": [],
+            "noiseMs": 167.4100160598755,
+            "postAlbertMs": 7.690072059631348,
+            "prosodyMs": 6.5299272537231445,
+            "tailMs": 1105.099081993103,
+            "vocoderMs": 266.20805263519287
+          },
+          {
+            "albertMs": 582.1740627288818,
+            "alignmentMs": 3.6019086837768555,
+            "cpuFallbackStages": [],
+            "noiseMs": 408.9850187301636,
+            "postAlbertMs": 17.249107360839844,
+            "prosodyMs": 13.899922370910645,
+            "tailMs": 2651.1260271072388,
+            "vocoderMs": 489.0860319137573
+          }
+        ],
+        "voice": "af_heart"
+      },
+      "peakRSSBytes": 503136256,
+      "thermalState": 0,
+      "watch": {
+        "elapsedMS": "7074",
+        "reason": "audio transferred",
+        "success": "true"
+      }
+    },
+    {
+      "backgroundAtFinish": true,
+      "backgroundAtStart": true,
+      "elapsedMS": 11414.512038230896,
+      "metrics": {
+        "audioSeconds": 6.225,
+        "cached": false,
+        "caseID": "af_heart-02",
+        "chunks": 2,
+        "completed": true,
+        "generationMS": 11398.207902908325,
+        "language": "en-US",
+        "loadMS": 0.0010728836059570312,
+        "stages": [
+          {
+            "albertMs": 329.16295528411865,
+            "alignmentMs": 1.5779733657836914,
+            "cpuFallbackStages": [],
+            "noiseMs": 570.3721046447754,
+            "postAlbertMs": 10.568022727966309,
+            "prosodyMs": 10.183930397033691,
+            "tailMs": 4162.068963050842,
+            "vocoderMs": 1006.026029586792
+          },
+          {
+            "albertMs": 578.747034072876,
+            "alignmentMs": 3.028988838195801,
+            "cpuFallbackStages": [],
+            "noiseMs": 529.1979312896729,
+            "postAlbertMs": 23.561954498291016,
+            "prosodyMs": 18.92697811126709,
+            "tailMs": 2982.8460216522217,
+            "vocoderMs": 1092.5960540771484
+          }
+        ],
+        "voice": "af_heart"
+      },
+      "peakRSSBytes": 503136256,
+      "thermalState": 0,
+      "watch": {
+        "elapsedMS": "12612",
+        "reason": "audio transferred",
+        "success": "true"
+      }
+    },
+    {
+      "backgroundAtFinish": true,
+      "backgroundAtStart": true,
+      "elapsedMS": 9424.11196231842,
+      "metrics": {
+        "audioSeconds": 3.8,
+        "cached": false,
+        "caseID": "af_heart-01",
+        "chunks": 2,
+        "completed": true,
+        "generationMS": 9410.36307811737,
+        "language": "en-US",
+        "loadMS": 0,
+        "stages": [
+          {
+            "albertMs": 603.8409471511841,
+            "alignmentMs": 8.929014205932617,
+            "cpuFallbackStages": [],
+            "noiseMs": 360.38506031036377,
+            "postAlbertMs": 26.556015014648438,
+            "prosodyMs": 18.198013305664062,
+            "tailMs": 2040.9599542617798,
+            "vocoderMs": 593.513011932373
+          },
+          {
+            "albertMs": 789.992094039917,
+            "alignmentMs": 3.3930540084838867,
+            "cpuFallbackStages": [],
+            "noiseMs": 564.0649795532227,
+            "postAlbertMs": 21.612048149108887,
+            "prosodyMs": 21.68405055999756,
+            "tailMs": 3436.895966529846,
+            "vocoderMs": 828.0119895935059
+          }
+        ],
+        "voice": "af_heart"
+      },
+      "peakRSSBytes": 503136256,
+      "thermalState": 0,
+      "watch": {
+        "elapsedMS": "10428",
+        "reason": "audio transferred",
+        "success": "true"
+      }
+    },
+    {
+      "backgroundAtFinish": true,
+      "backgroundAtStart": true,
+      "elapsedMS": 12478.660941123962,
+      "metrics": {
+        "audioSeconds": 6.225,
+        "cached": false,
+        "caseID": "af_heart-02",
+        "chunks": 2,
+        "completed": true,
+        "generationMS": 12470.15905380249,
+        "language": "en-US",
+        "loadMS": 0,
+        "stages": [
+          {
+            "albertMs": 375.7280111312866,
+            "alignmentMs": 2.5779008865356445,
+            "cpuFallbackStages": [],
+            "noiseMs": 694.3761110305786,
+            "postAlbertMs": 12.856006622314453,
+            "prosodyMs": 13.128042221069336,
+            "tailMs": 4521.681070327759,
+            "vocoderMs": 1144.766092300415
+          },
+          {
+            "albertMs": 696.0480213165283,
+            "alignmentMs": 3.988027572631836,
+            "cpuFallbackStages": [],
+            "noiseMs": 618.109941482544,
+            "postAlbertMs": 26.013970375061035,
+            "prosodyMs": 24.444937705993652,
+            "tailMs": 3408.3820581436157,
+            "vocoderMs": 823.625922203064
+          }
+        ],
+        "voice": "af_heart"
+      },
+      "peakRSSBytes": 503136256,
+      "thermalState": 0,
+      "watch": {
+        "elapsedMS": "13247",
+        "reason": "audio transferred",
+        "success": "true"
+      }
+    },
+    {
+      "backgroundAtFinish": true,
+      "backgroundAtStart": true,
+      "elapsedMS": 7140.655994415283,
+      "metrics": {
+        "audioSeconds": 3.8,
+        "cached": false,
+        "caseID": "af_heart-01",
+        "chunks": 2,
+        "completed": true,
+        "generationMS": 7131.649971008301,
+        "language": "en-US",
+        "loadMS": 0.0010728836059570312,
+        "stages": [
+          {
+            "albertMs": 301.0660409927368,
+            "alignmentMs": 2.7309656143188477,
+            "cpuFallbackStages": [],
+            "noiseMs": 170.51100730895996,
+            "postAlbertMs": 11.244058609008789,
+            "prosodyMs": 8.5679292678833,
+            "tailMs": 1699.9540328979492,
+            "vocoderMs": 400.61795711517334
+          },
+          {
+            "albertMs": 608.7930202484131,
+            "alignmentMs": 2.4689435958862305,
+            "cpuFallbackStages": [],
+            "noiseMs": 469.3460464477539,
+            "postAlbertMs": 19.456982612609863,
+            "prosodyMs": 15.24806022644043,
+            "tailMs": 2718.1220054626465,
+            "vocoderMs": 629.5719146728516
+          }
+        ],
+        "voice": "af_heart"
+      },
+      "peakRSSBytes": 503136256,
+      "thermalState": 0,
+      "watch": {
+        "elapsedMS": "8040",
+        "reason": "audio transferred",
+        "success": "true"
+      }
+    },
+    {
+      "backgroundAtFinish": true,
+      "backgroundAtStart": true,
+      "elapsedMS": 12001.538038253784,
+      "metrics": {
+        "audioSeconds": 6.225,
+        "cached": false,
+        "caseID": "af_heart-02",
+        "chunks": 2,
+        "completed": true,
+        "generationMS": 11987.534999847412,
+        "language": "en-US",
+        "loadMS": 0,
+        "stages": [
+          {
+            "albertMs": 314.54193592071533,
+            "alignmentMs": 12.864947319030762,
+            "cpuFallbackStages": [],
+            "noiseMs": 568.5439109802246,
+            "postAlbertMs": 24.137020111083984,
+            "prosodyMs": 10.697007179260254,
+            "tailMs": 4457.726001739502,
+            "vocoderMs": 1027.7899503707886
+          },
+          {
+            "albertMs": 642.5750255584717,
+            "alignmentMs": 3.070950508117676,
+            "cpuFallbackStages": [],
+            "noiseMs": 519.6729898452759,
+            "postAlbertMs": 21.341919898986816,
+            "prosodyMs": 15.774011611938477,
+            "tailMs": 3468.042016029358,
+            "vocoderMs": 804.2010068893433
+          }
+        ],
+        "voice": "af_heart"
+      },
+      "peakRSSBytes": 503136256,
+      "thermalState": 0,
+      "watch": {
+        "elapsedMS": "12843",
+        "reason": "audio transferred",
+        "success": "true"
+      }
+    },
+    {
+      "backgroundAtFinish": true,
+      "backgroundAtStart": true,
+      "elapsedMS": 3710.6499671936035,
+      "metrics": {
+        "audioSeconds": 3.8,
+        "cached": false,
+        "caseID": "af_heart-01",
+        "chunks": 2,
+        "completed": true,
+        "generationMS": 3702.6830911636353,
+        "language": "en-US",
+        "loadMS": 0.00095367431640625,
+        "stages": [
+          {
+            "albertMs": 411.78297996520996,
+            "alignmentMs": 3.21197509765625,
+            "cpuFallbackStages": [],
+            "noiseMs": 102.58889198303223,
+            "postAlbertMs": 7.418036460876465,
+            "prosodyMs": 5.766034126281738,
+            "tailMs": 699.5589733123779,
+            "vocoderMs": 185.78505516052246
+          },
+          {
+            "albertMs": 311.4349842071533,
+            "alignmentMs": 1.2850761413574219,
+            "cpuFallbackStages": [],
+            "noiseMs": 331.84897899627686,
+            "postAlbertMs": 11.402010917663574,
+            "prosodyMs": 7.997989654541016,
+            "tailMs": 1273.5579013824463,
+            "vocoderMs": 313.4419918060303
+          }
+        ],
+        "voice": "af_heart"
+      },
+      "peakRSSBytes": 503136256,
+      "thermalState": 0,
+      "watch": {
+        "elapsedMS": "4951",
+        "reason": "audio transferred",
+        "success": "true"
+      }
+    },
+    {
+      "backgroundAtFinish": true,
+      "backgroundAtStart": true,
+      "elapsedMS": 8087.208986282349,
+      "metrics": {
+        "audioSeconds": 6.225,
+        "cached": false,
+        "caseID": "af_heart-02",
+        "chunks": 2,
+        "completed": true,
+        "generationMS": 8070.832967758179,
+        "language": "en-US",
+        "loadMS": 0,
+        "stages": [
+          {
+            "albertMs": 277.2059440612793,
+            "alignmentMs": 2.332925796508789,
+            "cpuFallbackStages": [],
+            "noiseMs": 366.4330244064331,
+            "postAlbertMs": 11.87896728515625,
+            "prosodyMs": 9.631037712097168,
+            "tailMs": 2059.1810941696167,
+            "vocoderMs": 544.590950012207
+          },
+          {
+            "albertMs": 387.51697540283203,
+            "alignmentMs": 1.4529228210449219,
+            "cpuFallbackStages": [],
+            "noiseMs": 321.3160037994385,
+            "postAlbertMs": 21.2399959564209,
+            "prosodyMs": 8.13603401184082,
+            "tailMs": 3261.6599798202515,
+            "vocoderMs": 438.1279945373535
+          }
+        ],
+        "voice": "af_heart"
+      },
+      "peakRSSBytes": 503136256,
+      "thermalState": 0,
+      "watch": {
+        "elapsedMS": "8936",
+        "reason": "audio transferred",
+        "success": "true"
+      }
+    },
+    {
+      "backgroundAtFinish": false,
+      "backgroundAtStart": true,
+      "elapsedMS": 2743.2219982147217,
+      "metrics": {
+        "audioSeconds": 3.05,
+        "cached": false,
+        "caseID": "pf_dora-01",
+        "chunks": 2,
+        "completed": true,
+        "generationMS": 2736.9749546051025,
+        "language": "pt-BR",
+        "loadMS": 0,
+        "stages": [
+          {
+            "albertMs": 431.9850206375122,
+            "alignmentMs": 1.2500286102294922,
+            "cpuFallbackStages": [],
+            "noiseMs": 59.297919273376465,
+            "postAlbertMs": 5.779027938842773,
+            "prosodyMs": 3.91995906829834,
+            "tailMs": 297.57189750671387,
+            "vocoderMs": 82.58795738220215
+          },
+          {
+            "albertMs": 349.8380184173584,
+            "alignmentMs": 1.2040138244628906,
+            "cpuFallbackStages": [],
+            "noiseMs": 163.09106349945068,
+            "postAlbertMs": 8.239030838012695,
+            "prosodyMs": 5.617022514343262,
+            "tailMs": 876.3600587844849,
+            "vocoderMs": 260.4639530181885
+          }
+        ],
+        "voice": "pf_dora"
+      },
+      "peakRSSBytes": 503136256,
+      "thermalState": 0,
+      "watch": {
+        "elapsedMS": "3032",
+        "reason": "audio transferred",
+        "success": "true"
+      }
+    },
+    {
+      "backgroundAtFinish": false,
+      "backgroundAtStart": false,
+      "elapsedMS": 3887.313961982727,
+      "metrics": {
+        "audioSeconds": 6.225,
+        "cached": false,
+        "caseID": "pf_dora-02",
+        "chunks": 2,
+        "completed": true,
+        "generationMS": 3877.703070640564,
+        "language": "pt-BR",
+        "loadMS": 0,
+        "stages": [
+          {
+            "albertMs": 268.1790590286255,
+            "alignmentMs": 2.2600889205932617,
+            "cpuFallbackStages": [],
+            "noiseMs": 229.08496856689453,
+            "postAlbertMs": 11.229991912841797,
+            "prosodyMs": 8.980989456176758,
+            "tailMs": 1214.9419784545898,
+            "vocoderMs": 314.36002254486084
+          },
+          {
+            "albertMs": 239.812970161438,
+            "alignmentMs": 1.7229318618774414,
+            "cpuFallbackStages": [],
+            "noiseMs": 196.17903232574463,
+            "postAlbertMs": 9.731054306030273,
+            "prosodyMs": 7.912993431091309,
+            "tailMs": 1062.1379613876343,
+            "vocoderMs": 272.42493629455566
+          }
+        ],
+        "voice": "pf_dora"
+      },
+      "peakRSSBytes": 503136256,
+      "thermalState": 0,
+      "watch": {
+        "elapsedMS": "4969",
+        "reason": "audio transferred",
+        "success": "true"
+      }
+    },
+    {
+      "backgroundAtFinish": false,
+      "backgroundAtStart": false,
+      "elapsedMS": 2157.3950052261353,
+      "metrics": {
+        "audioSeconds": 3.05,
+        "cached": false,
+        "caseID": "pf_dora-01",
+        "chunks": 2,
+        "completed": true,
+        "generationMS": 2145.8890438079834,
+        "language": "pt-BR",
+        "loadMS": 0,
+        "stages": [
+          {
+            "albertMs": 241.95599555969238,
+            "alignmentMs": 1.2829303741455078,
+            "cpuFallbackStages": [],
+            "noiseMs": 46.098947525024414,
+            "postAlbertMs": 6.4460039138793945,
+            "prosodyMs": 4.266023635864258,
+            "tailMs": 281.2269926071167,
+            "vocoderMs": 75.25408267974854
+          },
+          {
+            "albertMs": 238.03198337554932,
+            "alignmentMs": 1.230001449584961,
+            "cpuFallbackStages": [],
+            "noiseMs": 144.4549560546875,
+            "postAlbertMs": 8.683085441589355,
+            "prosodyMs": 6.18290901184082,
+            "tailMs": 838.4860754013062,
+            "vocoderMs": 229.3710708618164
+          }
+        ],
+        "voice": "pf_dora"
+      },
+      "peakRSSBytes": 503136256,
+      "thermalState": 0,
+      "watch": {
+        "elapsedMS": "2544",
+        "reason": "audio transferred",
+        "success": "true"
+      }
+    },
+    {
+      "backgroundAtFinish": false,
+      "backgroundAtStart": false,
+      "elapsedMS": 3890.260934829712,
+      "metrics": {
+        "audioSeconds": 6.225,
+        "cached": false,
+        "caseID": "pf_dora-02",
+        "chunks": 2,
+        "completed": true,
+        "generationMS": 3881.140947341919,
+        "language": "pt-BR",
+        "loadMS": 0,
+        "stages": [
+          {
+            "albertMs": 265.9330368041992,
+            "alignmentMs": 1.6520023345947266,
+            "cpuFallbackStages": [],
+            "noiseMs": 225.0739336013794,
+            "postAlbertMs": 13.158082962036133,
+            "prosodyMs": 9.02700424194336,
+            "tailMs": 1221.3640213012695,
+            "vocoderMs": 326.42102241516113
+          },
+          {
+            "albertMs": 228.93309593200684,
+            "alignmentMs": 1.3840198516845703,
+            "cpuFallbackStages": [],
+            "noiseMs": 199.98300075531006,
+            "postAlbertMs": 9.552955627441406,
+            "prosodyMs": 7.895946502685547,
+            "tailMs": 1069.0089464187622,
+            "vocoderMs": 266.3799524307251
+          }
+        ],
+        "voice": "pf_dora"
+      },
+      "peakRSSBytes": 504709120,
+      "thermalState": 0,
+      "watch": {
+        "elapsedMS": "4449",
+        "reason": "audio transferred",
+        "success": "true"
+      }
+    },
+    {
+      "backgroundAtFinish": false,
+      "backgroundAtStart": false,
+      "elapsedMS": 2122.8020191192627,
+      "metrics": {
+        "audioSeconds": 3.05,
+        "cached": false,
+        "caseID": "pf_dora-01",
+        "chunks": 2,
+        "completed": true,
+        "generationMS": 2112.7229928970337,
+        "language": "pt-BR",
+        "loadMS": 0,
+        "stages": [
+          {
+            "albertMs": 236.860990524292,
+            "alignmentMs": 0.8569955825805664,
+            "cpuFallbackStages": [],
+            "noiseMs": 42.8619384765625,
+            "postAlbertMs": 4.413962364196777,
+            "prosodyMs": 2.4640560150146484,
+            "tailMs": 287.5170707702637,
+            "vocoderMs": 75.97696781158447
+          },
+          {
+            "albertMs": 236.40894889831543,
+            "alignmentMs": 1.455068588256836,
+            "cpuFallbackStages": [],
+            "noiseMs": 145.2319622039795,
+            "postAlbertMs": 11.439919471740723,
+            "prosodyMs": 6.306052207946777,
+            "tailMs": 822.7920532226562,
+            "vocoderMs": 215.22390842437744
+          }
+        ],
+        "voice": "pf_dora"
+      },
+      "peakRSSBytes": 504709120,
+      "thermalState": 0,
+      "watch": {
+        "elapsedMS": "2348",
+        "reason": "audio transferred",
+        "success": "true"
+      }
+    },
+    {
+      "backgroundAtFinish": false,
+      "backgroundAtStart": false,
+      "elapsedMS": 4069.214940071106,
+      "metrics": {
+        "audioSeconds": 6.225,
+        "cached": false,
+        "caseID": "pf_dora-02",
+        "chunks": 2,
+        "completed": true,
+        "generationMS": 4056.2310218811035,
+        "language": "pt-BR",
+        "loadMS": 0.00095367431640625,
+        "stages": [
+          {
+            "albertMs": 257.9319477081299,
+            "alignmentMs": 1.5169382095336914,
+            "cpuFallbackStages": [],
+            "noiseMs": 239.67206478118896,
+            "postAlbertMs": 10.777950286865234,
+            "prosodyMs": 8.694052696228027,
+            "tailMs": 1280.1129817962646,
+            "vocoderMs": 316.0630464553833
+          },
+          {
+            "albertMs": 245.30398845672607,
+            "alignmentMs": 1.5339851379394531,
+            "cpuFallbackStages": [],
+            "noiseMs": 254.90403175354004,
+            "postAlbertMs": 11.29007339477539,
+            "prosodyMs": 7.872104644775391,
+            "tailMs": 1083.401083946228,
+            "vocoderMs": 299.61490631103516
+          }
+        ],
+        "voice": "pf_dora"
+      },
+      "peakRSSBytes": 513114112,
+      "thermalState": 0,
+      "watch": {
+        "elapsedMS": "5167",
+        "reason": "audio transferred",
+        "success": "true"
+      }
+    },
+    {
+      "backgroundAtFinish": false,
+      "backgroundAtStart": false,
+      "elapsedMS": 2133.5599422454834,
+      "metrics": {
+        "audioSeconds": 3.05,
+        "cached": false,
+        "caseID": "pf_dora-01",
+        "chunks": 2,
+        "completed": true,
+        "generationMS": 2124.8199939727783,
+        "language": "pt-BR",
+        "loadMS": 0,
+        "stages": [
+          {
+            "albertMs": 237.30897903442383,
+            "alignmentMs": 1.435995101928711,
+            "cpuFallbackStages": [],
+            "noiseMs": 45.76301574707031,
+            "postAlbertMs": 6.675004959106445,
+            "prosodyMs": 4.044055938720703,
+            "tailMs": 279.9069881439209,
+            "vocoderMs": 76.40397548675537
+          },
+          {
+            "albertMs": 239.30597305297852,
+            "alignmentMs": 1.3129711151123047,
+            "cpuFallbackStages": [],
+            "noiseMs": 144.30701732635498,
+            "postAlbertMs": 8.998990058898926,
+            "prosodyMs": 6.435990333557129,
+            "tailMs": 839.1909599304199,
+            "vocoderMs": 210.09397506713867
+          }
+        ],
+        "voice": "pf_dora"
+      },
+      "peakRSSBytes": 513114112,
+      "thermalState": 0,
+      "watch": {
+        "elapsedMS": "2457",
+        "reason": "audio transferred",
+        "success": "true"
+      }
+    },
+    {
+      "backgroundAtFinish": true,
+      "backgroundAtStart": false,
+      "elapsedMS": 4713.279962539673,
+      "metrics": {
+        "audioSeconds": 6.225,
+        "cached": false,
+        "caseID": "pf_dora-02",
+        "chunks": 2,
+        "completed": true,
+        "generationMS": 4703.004002571106,
+        "language": "pt-BR",
+        "loadMS": 0,
+        "stages": [
+          {
+            "albertMs": 267.6810026168823,
+            "alignmentMs": 1.6160011291503906,
+            "cpuFallbackStages": [],
+            "noiseMs": 245.09203433990479,
+            "postAlbertMs": 15.899896621704102,
+            "prosodyMs": 9.037971496582031,
+            "tailMs": 1206.257939338684,
+            "vocoderMs": 317.65902042388916
+          },
+          {
+            "albertMs": 243.6610460281372,
+            "alignmentMs": 1.4410018920898438,
+            "cpuFallbackStages": [],
+            "noiseMs": 206.8079710006714,
+            "postAlbertMs": 9.388089179992676,
+            "prosodyMs": 7.560014724731445,
+            "tailMs": 1838.804006576538,
+            "vocoderMs": 289.9470329284668
+          }
+        ],
+        "voice": "pf_dora"
+      },
+      "peakRSSBytes": 513114112,
+      "thermalState": 0,
+      "watch": {
+        "elapsedMS": "5994",
+        "reason": "audio transferred",
+        "success": "true"
+      }
+    },
+    {
+      "backgroundAtFinish": true,
+      "backgroundAtStart": true,
+      "elapsedMS": 2439.441919326782,
+      "metrics": {
+        "audioSeconds": 3.05,
+        "cached": false,
+        "caseID": "pf_dora-01",
+        "chunks": 2,
+        "completed": true,
+        "generationMS": 2432.237982749939,
+        "language": "pt-BR",
+        "loadMS": 0,
+        "stages": [
+          {
+            "albertMs": 244.21405792236328,
+            "alignmentMs": 1.672983169555664,
+            "cpuFallbackStages": [],
+            "noiseMs": 54.41093444824219,
+            "postAlbertMs": 7.387995719909668,
+            "prosodyMs": 4.850983619689941,
+            "tailMs": 304.8079013824463,
+            "vocoderMs": 126.47795677185059
+          },
+          {
+            "albertMs": 273.0751037597656,
+            "alignmentMs": 1.7719268798828125,
+            "cpuFallbackStages": [],
+            "noiseMs": 161.6729497909546,
+            "postAlbertMs": 11.001944541931152,
+            "prosodyMs": 7.728099822998047,
+            "tailMs": 957.6690196990967,
+            "vocoderMs": 249.6129274368286
+          }
+        ],
+        "voice": "pf_dora"
+      },
+      "peakRSSBytes": 513114112,
+      "thermalState": 0,
+      "watch": {
+        "elapsedMS": "2673",
+        "reason": "audio transferred",
+        "success": "true"
+      }
+    },
+    {
+      "backgroundAtFinish": true,
+      "backgroundAtStart": true,
+      "elapsedMS": 5711.459994316101,
+      "metrics": {
+        "audioSeconds": 6.225,
+        "cached": false,
+        "caseID": "pf_dora-02",
+        "chunks": 2,
+        "completed": true,
+        "generationMS": 5700.346946716309,
+        "language": "pt-BR",
+        "loadMS": 0,
+        "stages": [
+          {
+            "albertMs": 272.04298973083496,
+            "alignmentMs": 1.8619298934936523,
+            "cpuFallbackStages": [],
+            "noiseMs": 247.0250129699707,
+            "postAlbertMs": 12.552022933959961,
+            "prosodyMs": 10.42795181274414,
+            "tailMs": 1541.6200160980225,
+            "vocoderMs": 397.98200130462646
+          },
+          {
+            "albertMs": 303.4799098968506,
+            "alignmentMs": 1.6149282455444336,
+            "cpuFallbackStages": [],
+            "noiseMs": 228.22999954223633,
+            "postAlbertMs": 12.201070785522461,
+            "prosodyMs": 8.422017097473145,
+            "tailMs": 2203.634023666382,
+            "vocoderMs": 377.7550458908081
+          }
+        ],
+        "voice": "pf_dora"
+      },
+      "peakRSSBytes": 513114112,
+      "thermalState": 0,
+      "watch": {
+        "elapsedMS": "6494",
+        "reason": "audio transferred",
+        "success": "true"
+      }
+    }
+  ],
+  "scope": "First batch: 20 successful transfers; only 12 jobs entirely backgrounded, 8 saw foreground. Not a 20-trial locked-phone pass.",
+  "watch": "Apple Watch Ultra 2 / watchOS 27.0"
+}

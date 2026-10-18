@@ -10,9 +10,11 @@ public struct ReplyAudio: Codable, Equatable, Sendable {
     public let bytes: Int
     public let duration: Double
     public let format: String?
+    public let generatedLocally: Bool?
     public var fileExtension: String { if let format, ["wav", "m4a"].contains(format) { return format }; return "mp3" }
-    public var filename: String { "reply-\(id.uuidString).\(fileExtension)" }
-    public init(data: Data, duration: Double) throws {
+    public var filename: String { "\(generatedLocally == true ? "speech" : "reply")-\(id.uuidString).\(fileExtension)" }
+    public init(data: Data, duration: Double, generatedLocally: Bool = false) throws {
+        self.generatedLocally = generatedLocally ? true : nil
         format = try Self.detectFormat(data)
         guard duration.isFinite, duration > 0, duration <= 1800 else { throw RelayError.invalid }
         id = UUID(); bytes = data.count; self.duration = duration
@@ -50,12 +52,18 @@ public struct ReplyAudioTransfer: Codable, Equatable, Sendable {
     public let chatID: UUID
     public let messageID: String
     public let audio: ReplyAudio
-    public init(account: String, chatID: UUID, messageID: String, audio: ReplyAudio) {
+    public let speechRequest: LocalSpeechRequest?
+    public init(account: String, chatID: UUID, messageID: String, audio: ReplyAudio, speechRequest: LocalSpeechRequest? = nil) {
         self.account = account; self.chatID = chatID; self.messageID = messageID; self.audio = audio
+        self.speechRequest = speechRequest
     }
     public func validate(_ data: Data) throws {
         guard !account.isEmpty, account.utf8.count < 512, !messageID.isEmpty, messageID.utf8.count <= 512 else { throw RelayError.invalid }
         try audio.validate(data)
+        if let speechRequest {
+            try speechRequest.validate()
+            guard speechRequest.account == account, speechRequest.chatID == chatID, speechRequest.messageID == messageID else { throw RelayError.invalid }
+        }
     }
 }
 

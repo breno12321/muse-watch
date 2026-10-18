@@ -28,7 +28,7 @@ struct ChatView: View {
                 try? await Task.sleep(for: .milliseconds(150))
                 proxy.scrollTo("latest", anchor: .bottom)
             }
-            .onChange(of: store.conversation(id)?.messages.last) { _, _ in withAnimation { proxy.scrollTo("latest", anchor: .bottom) } }
+            .onChange(of: store.conversation(id)?.messages.last.map { $0.id + "\u{0}" + $0.text }) { _, _ in withAnimation { proxy.scrollTo("latest", anchor: .bottom) } }
         }
         .navigationTitle(store.conversation(id)?.title ?? "Chat").navigationBarTitleDisplayMode(.inline)
         .navigationBarBackButtonHidden(false)
@@ -92,6 +92,9 @@ struct MessageBubble: View {
                 }
             } else if message.role == .user {
                 Text(verbatim: message.text).font(.system(size: 15)).fixedSize(horizontal: false, vertical: true)
+            }
+            if message.role == .muse, message.replyComplete == true, store.speechAvailable {
+                SpeechControl(message: message, conversationID: conversationID)
             }
             if let delivery = message.delivery {
                 Text(delivery.label).font(.system(size: 10)).foregroundStyle(delivery == .uncertain || delivery == .failed ? .orange : MuseStyle.secondary)

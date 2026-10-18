@@ -299,6 +299,70 @@ import Foundation
         let earlierRestored = MuseStore(directory: earlierDirectory, connectivity: false)
         precondition(earlierRestored.conversation(idea.id)?.messages.count == 2 && earlierRestored.orderedChats.contains { $0.id == idea.id })
         print("PASS: earlier starter chats leave the main list without losing history/bookmarks; drafts and pending sends stay visible; renaming restores a chat")
+        // Speech requests survive offline/relaunch and never enter the message outbox.
+        let speechDirectory = directory.appendingPathComponent("LocalSpeech")
+        let speechRelay = RelayConnectivity()
+        let speechStore = MuseStore(directory: speechDirectory, relay: speechRelay)
+        var generatedSnapshot = snapshot
+        generatedSnapshot.speechVersion = LocalSpeechRequest.currentVersion
+        generatedSnapshot.messages[0].replyComplete = true
+        speechStore.receive(generatedSnapshot)
+        let candidate = speechStore.conversation(chat.id)!.messages[0]
+        speechStore.generateSpeech(candidate, in: chat.id)
+        speechStore.generateSpeech(candidate, in: chat.id)
+        precondition(speechRelay.speechRequests.count == 1)
+        let speechRequest = speechRelay.speechRequests[0]
+        let speechRestored = MuseStore(directory: speechDirectory, connectivity: false)
+        precondition(speechRestored.conversation(chat.id)!.messages[0].speechPending == speechRequest)
+        struct SpeechArchive: Decodable { let outbox: [RelayRequest] }
+        let speechSaved = try JSONDecoder().decode(SpeechArchive.self, from: Data(contentsOf: speechDirectory.appendingPathComponent("muse-live-watch.json")))
+        precondition(speechSaved.outbox.isEmpty)
+        var generatedData = Data([0, 0, 0, 20]); generatedData.append(Data("ftypM4A ".utf8))
+        let generatedAudio = try ReplyAudio(data: generatedData, duration: 3)
+        let generatedTransfer = ReplyAudioTransfer(account: snapshot.account, chatID: chat.id, messageID: reply.id, audio: generatedAudio, speechRequest: speechRequest)
+        let generatedTemporary = directory.appendingPathComponent("incoming-generated.m4a")
+        try generatedData.write(to: generatedTemporary)
+        speechStore.receiveReplyAudio(generatedTransfer, from: generatedTemporary)
+        precondition(speechStore.conversation(chat.id)!.messages[0].speechFile == generatedAudio.filename)
+        generatedSnapshot.revision += 1
+        generatedSnapshot.messages[0].localSpeech = LocalSpeechStatus(request: speechRequest, phase: .ready, audio: generatedAudio)
+        speechStore.receive(generatedSnapshot)
+        let readySpeech = speechStore.conversation(chat.id)!.messages[0]
+        precondition(readySpeech.speechFile == generatedAudio.filename && readySpeech.speechPending == nil)
+        precondition(readySpeech.audioFile == nil) // Historical Muse audio stays distinct.
+        let cachedSpeech = MuseStore(directory: speechDirectory, connectivity: false)
+        precondition(cachedSpeech.conversation(chat.id)!.messages[0].speechFile == generatedAudio.filename)
+        // A changed reply never plays stale audio or accepts its old transfer.
+        generatedSnapshot.revision += 1; generatedSnapshot.messages[0].text = "Changed English reply."
+        speechStore.receive(generatedSnapshot)
+        precondition(speechStore.conversation(chat.id)!.messages[0].speechFile == nil)
+        try generatedData.write(to: generatedTemporary)
+        speechStore.receiveReplyAudio(generatedTransfer, from: generatedTemporary)
+        precondition(speechStore.error != nil)
+        speechStore.generateSpeech(speechStore.conversation(chat.id)!.messages[0], in: chat.id)
+        let nextSpeech = speechRelay.speechRequests.last!
+        precondition(nextSpeech.revision == speechRequest.revision + 1 && nextSpeech.textHash != speechRequest.textHash)
+        try generatedData.write(to: generatedTemporary)
+        speechStore.receiveReplyAudio(generatedTransfer, from: generatedTemporary)
+        precondition(speechStore.conversation(chat.id)!.messages[0].speechPending == nextSpeech)
+        speechRelay.onSpeechReceipt?(nextSpeech.id, false)
+        precondition(speechStore.conversation(chat.id)!.messages[0].speechRejected)
+        generatedSnapshot.account = "other-account"; generatedSnapshot.revision += 1
+        speechStore.receive(generatedSnapshot)
+        precondition(speechStore.conversation(chat.id)!.messages[0].speechPending == nil)
+        precondition(!FileManager.default.fileExists(atPath: speechStore.audioURL(generatedAudio.filename).path))
+        // A failed local write cannot send or leave a pending spinner.
+        let failedSpeechDirectory = directory.appendingPathComponent("FailedSpeech")
+        let failedSpeechRelay = RelayConnectivity()
+        let failedSpeechStore = MuseStore(directory: failedSpeechDirectory, relay: failedSpeechRelay)
+        var failedSpeechSnapshot = snapshot; failedSpeechSnapshot.speechVersion = LocalSpeechRequest.currentVersion
+        failedSpeechSnapshot.messages[0].replyComplete = true; failedSpeechStore.receive(failedSpeechSnapshot)
+        let failedSpeechArchive = failedSpeechDirectory.appendingPathComponent("muse-live-watch.json")
+        try FileManager.default.removeItem(at: failedSpeechArchive)
+        try FileManager.default.createDirectory(at: failedSpeechArchive, withIntermediateDirectories: false)
+        failedSpeechStore.generateSpeech(failedSpeechStore.conversation(chat.id)!.messages[0], in: chat.id)
+        precondition(failedSpeechRelay.speechRequests.isEmpty && failedSpeechStore.conversation(chat.id)!.messages[0].speechPending == nil)
+        print("PASS: durable local speech, duplicate taps, file-before-status, offline replay, changed text, rejection, account isolation and failed-write rollback")
         let corrupted = directory.appendingPathComponent("muse-live-watch.json")
         let bad = Data("not json".utf8); try bad.write(to: corrupted)
         let broken = MuseStore(directory: directory, connectivity: false)

@@ -6,6 +6,7 @@ xcuserdata/
 *.m4a
 *.log
 .build/
+.local/
 .swiftpm/
 dist/
 __pycache__/

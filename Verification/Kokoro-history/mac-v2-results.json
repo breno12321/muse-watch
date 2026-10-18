@@ -1,0 +1,1328 @@
+{
+  "assessment": "38/40 generated; English names fail; revised Portuguese listening assessment pending. Mac timings are not iPhone timings.",
+  "date": "2026-10-17",
+  "pipelineVersion": "v2-punctuation",
+  "platform": "Apple Silicon Mac / macOS 27.0",
+  "runs": [
+    {
+      "audioSeconds": 3.8,
+      "cached": false,
+      "caseID": "af_heart-01",
+      "chunks": 2,
+      "completed": true,
+      "generationMS": 1075.7449865341187,
+      "language": "en-US",
+      "loadMS": 552.899956703186,
+      "stages": [
+        {
+          "albertMs": 17.3799991607666,
+          "alignmentMs": 1.2230873107910156,
+          "cpuFallbackStages": [],
+          "noiseMs": 30.246973037719727,
+          "postAlbertMs": 33.535003662109375,
+          "prosodyMs": 21.620988845825195,
+          "tailMs": 282.23299980163574,
+          "vocoderMs": 102.23996639251709
+        },
+        {
+          "albertMs": 4.657983779907227,
+          "alignmentMs": 0.883936882019043,
+          "cpuFallbackStages": [],
+          "noiseMs": 25.16806125640869,
+          "postAlbertMs": 1.878976821899414,
+          "prosodyMs": 1.8590688705444336,
+          "tailMs": 488.3689880371094,
+          "vocoderMs": 35.803914070129395
+        }
+      ],
+      "voice": "af_heart"
+    },
+    {
+      "audioSeconds": 6.225,
+      "cached": false,
+      "caseID": "af_heart-02",
+      "chunks": 2,
+      "completed": true,
+      "generationMS": 1474.5049476623535,
+      "language": "en-US",
+      "loadMS": 0,
+      "stages": [
+        {
+          "albertMs": 5.202889442443848,
+          "alignmentMs": 0.8689165115356445,
+          "cpuFallbackStages": [],
+          "noiseMs": 41.7170524597168,
+          "postAlbertMs": 2.213001251220703,
+          "prosodyMs": 2.2499561309814453,
+          "tailMs": 700.8039951324463,
+          "vocoderMs": 53.468942642211914
+        },
+        {
+          "albertMs": 5.2490234375,
+          "alignmentMs": 0.6630420684814453,
+          "cpuFallbackStages": [],
+          "noiseMs": 28.187990188598633,
+          "postAlbertMs": 2.0570755004882812,
+          "prosodyMs": 1.7709732055664062,
+          "tailMs": 572.5389719009399,
+          "vocoderMs": 40.50600528717041
+        }
+      ],
+      "voice": "af_heart"
+    },
+    {
+      "audioSeconds": 4.95,
+      "cached": false,
+      "caseID": "af_heart-03",
+      "chunks": 1,
+      "completed": true,
+      "generationMS": 1186.6101026535034,
+      "language": "en-US",
+      "loadMS": 0,
+      "stages": [
+        {
+          "albertMs": 6.657958030700684,
+          "alignmentMs": 1.0389089584350586,
+          "cpuFallbackStages": [],
+          "noiseMs": 61.50698661804199,
+          "postAlbertMs": 2.841949462890625,
+          "prosodyMs": 2.926945686340332,
+          "tailMs": 1029.7349691390991,
+          "vocoderMs": 68.55595111846924
+        }
+      ],
+      "voice": "af_heart"
+    },
+    {
+      "audioSeconds": 5.425,
+      "cached": false,
+      "caseID": "af_heart-04",
+      "chunks": 2,
+      "completed": true,
+      "generationMS": 1276.4650583267212,
+      "language": "en-US",
+      "loadMS": 0,
+      "stages": [
+        {
+          "albertMs": 5.110979080200195,
+          "alignmentMs": 0.6690025329589844,
+          "cpuFallbackStages": [],
+          "noiseMs": 34.82699394226074,
+          "postAlbertMs": 2.1920204162597656,
+          "prosodyMs": 2.1719932556152344,
+          "tailMs": 676.9980192184448,
+          "vocoderMs": 47.13797569274902
+        },
+        {
+          "albertMs": 2.79390811920166,
+          "alignmentMs": 0.6110668182373047,
+          "cpuFallbackStages": [],
+          "noiseMs": 23.520946502685547,
+          "postAlbertMs": 1.4159679412841797,
+          "prosodyMs": 1.6139745712280273,
+          "tailMs": 426.9310235977173,
+          "vocoderMs": 35.218000411987305
+        }
+      ],
+      "voice": "af_heart"
+    },
+    {
+      "audioSeconds": 0,
+      "cached": false,
+      "caseID": "af_heart-05",
+      "chunks": 0,
+      "completed": false,
+      "failure": "English pronunciation has unknown words; quality gate failed.",
+      "generationMS": 0,
+      "language": "en-US",
+      "loadMS": 0,
+      "stages": [],
+      "voice": "af_heart"
+    },
+    {
+      "audioSeconds": 4.7,
+      "cached": false,
+      "caseID": "af_heart-06",
+      "chunks": 1,
+      "completed": true,
+      "generationMS": 1115.3680086135864,
+      "language": "en-US",
+      "loadMS": 0,
+      "stages": [
+        {
+          "albertMs": 6.4640045166015625,
+          "alignmentMs": 0.5010366439819336,
+          "cpuFallbackStages": [],
+          "noiseMs": 49.22902584075928,
+          "postAlbertMs": 2.729058265686035,
+          "prosodyMs": 2.5429725646972656,
+          "tailMs": 978.6700010299683,
+          "vocoderMs": 61.854004859924316
+        }
+      ],
+      "voice": "af_heart"
+    },
+    {
+      "audioSeconds": 4.3,
+      "cached": false,
+      "caseID": "af_heart-07",
+      "chunks": 2,
+      "completed": true,
+      "generationMS": 993.2790994644165,
+      "language": "en-US",
+      "loadMS": 0,
+      "stages": [
+        {
+          "albertMs": 2.5769472122192383,
+          "alignmentMs": 0.33104419708251953,
+          "cpuFallbackStages": [],
+          "noiseMs": 22.841930389404297,
+          "postAlbertMs": 1.4380216598510742,
+          "prosodyMs": 1.5490055084228516,
+          "tailMs": 446.6019868850708,
+          "vocoderMs": 33.601999282836914
+        },
+        {
+          "albertMs": 2.9900074005126953,
+          "alignmentMs": 0.7030963897705078,
+          "cpuFallbackStages": [],
+          "noiseMs": 22.013068199157715,
+          "postAlbertMs": 1.4580488204956055,
+          "prosodyMs": 1.62506103515625,
+          "tailMs": 412.431001663208,
+          "vocoderMs": 29.915928840637207
+        }
+      ],
+      "voice": "af_heart"
+    },
+    {
+      "audioSeconds": 5.4,
+      "cached": false,
+      "caseID": "af_heart-08",
+      "chunks": 2,
+      "completed": true,
+      "generationMS": 1258.3249807357788,
+      "language": "en-US",
+      "loadMS": 0,
+      "stages": [
+        {
+          "albertMs": 4.068970680236816,
+          "alignmentMs": 0.3319978713989258,
+          "cpuFallbackStages": [],
+          "noiseMs": 25.062084197998047,
+          "postAlbertMs": 1.640915870666504,
+          "prosodyMs": 1.8339157104492188,
+          "tailMs": 511.4389657974243,
+          "vocoderMs": 36.93699836730957
+        },
+        {
+          "albertMs": 4.98199462890625,
+          "alignmentMs": 0.4140138626098633,
+          "cpuFallbackStages": [],
+          "noiseMs": 28.540968894958496,
+          "postAlbertMs": 2.102971076965332,
+          "prosodyMs": 1.829981803894043,
+          "tailMs": 584.7100019454956,
+          "vocoderMs": 39.81900215148926
+        }
+      ],
+      "voice": "af_heart"
+    },
+    {
+      "audioSeconds": 19.2,
+      "cached": false,
+      "caseID": "af_heart-09",
+      "chunks": 5,
+      "completed": true,
+      "generationMS": 4478.785037994385,
+      "language": "en-US",
+      "loadMS": 0,
+      "stages": [
+        {
+          "albertMs": 4.847049713134766,
+          "alignmentMs": 0.431060791015625,
+          "cpuFallbackStages": [],
+          "noiseMs": 29.34110164642334,
+          "postAlbertMs": 2.0700693130493164,
+          "prosodyMs": 1.8329620361328125,
+          "tailMs": 566.7760372161865,
+          "vocoderMs": 38.49208354949951
+        },
+        {
+          "albertMs": 6.698966026306152,
+          "alignmentMs": 0.8009672164916992,
+          "cpuFallbackStages": [],
+          "noiseMs": 58.82704257965088,
+          "postAlbertMs": 2.9489994049072266,
+          "prosodyMs": 2.8259754180908203,
+          "tailMs": 1058.7819814682007,
+          "vocoderMs": 70.23096084594727
+        },
+        {
+          "albertMs": 6.554007530212402,
+          "alignmentMs": 0.4500150680541992,
+          "cpuFallbackStages": [],
+          "noiseMs": 50.82201957702637,
+          "postAlbertMs": 2.6570558547973633,
+          "prosodyMs": 2.382993698120117,
+          "tailMs": 920.1680421829224,
+          "vocoderMs": 60.246944427490234
+        },
+        {
+          "albertMs": 4.3610334396362305,
+          "alignmentMs": 0.4799365997314453,
+          "cpuFallbackStages": [],
+          "noiseMs": 29.227018356323242,
+          "postAlbertMs": 2.005934715270996,
+          "prosodyMs": 1.8680095672607422,
+          "tailMs": 532.9530239105225,
+          "vocoderMs": 36.853909492492676
+        },
+        {
+          "albertMs": 4.887938499450684,
+          "alignmentMs": 0.4159212112426758,
+          "cpuFallbackStages": [],
+          "noiseMs": 46.25594615936279,
+          "postAlbertMs": 2.290010452270508,
+          "prosodyMs": 2.195000648498535,
+          "tailMs": 824.7619867324829,
+          "vocoderMs": 53.76303195953369
+        }
+      ],
+      "voice": "af_heart"
+    },
+    {
+      "audioSeconds": 5.3,
+      "cached": false,
+      "caseID": "af_heart-10",
+      "chunks": 2,
+      "completed": true,
+      "generationMS": 1234.7370386123657,
+      "language": "en-US",
+      "loadMS": 0,
+      "stages": [
+        {
+          "albertMs": 4.441022872924805,
+          "alignmentMs": 0.3370046615600586,
+          "cpuFallbackStages": [],
+          "noiseMs": 25.707006454467773,
+          "postAlbertMs": 1.7379522323608398,
+          "prosodyMs": 1.604914665222168,
+          "tailMs": 472.24700450897217,
+          "vocoderMs": 33.63800048828125
+        },
+        {
+          "albertMs": 4.126906394958496,
+          "alignmentMs": 0.3980398178100586,
+          "cpuFallbackStages": [],
+          "noiseMs": 30.27200698852539,
+          "postAlbertMs": 1.9369125366210938,
+          "prosodyMs": 1.7989873886108398,
+          "tailMs": 597.6240634918213,
+          "vocoderMs": 43.441057205200195
+        }
+      ],
+      "voice": "af_heart"
+    },
+    {
+      "audioSeconds": 4.25,
+      "cached": false,
+      "caseID": "am_michael-01",
+      "chunks": 2,
+      "completed": true,
+      "generationMS": 1005.4459571838379,
+      "language": "en-US",
+      "loadMS": 0,
+      "stages": [
+        {
+          "albertMs": 2.1729469299316406,
+          "alignmentMs": 0.3930330276489258,
+          "cpuFallbackStages": [],
+          "noiseMs": 17.21799373626709,
+          "postAlbertMs": 0.9970664978027344,
+          "prosodyMs": 1.0979175567626953,
+          "tailMs": 285.83693504333496,
+          "vocoderMs": 29.35802936553955
+        },
+        {
+          "albertMs": 4.559993743896484,
+          "alignmentMs": 0.34499168395996094,
+          "cpuFallbackStages": [],
+          "noiseMs": 30.154943466186523,
+          "postAlbertMs": 1.8509626388549805,
+          "prosodyMs": 1.8780231475830078,
+          "tailMs": 576.712965965271,
+          "vocoderMs": 38.89596462249756
+        }
+      ],
+      "voice": "am_michael"
+    },
+    {
+      "audioSeconds": 7.425,
+      "cached": false,
+      "caseID": "am_michael-02",
+      "chunks": 2,
+      "completed": true,
+      "generationMS": 1722.4539518356323,
+      "language": "en-US",
+      "loadMS": 0,
+      "stages": [
+        {
+          "albertMs": 4.781961441040039,
+          "alignmentMs": 0.4030466079711914,
+          "cpuFallbackStages": [],
+          "noiseMs": 42.78290271759033,
+          "postAlbertMs": 2.146005630493164,
+          "prosodyMs": 2.2019147872924805,
+          "tailMs": 814.5300149917603,
+          "vocoderMs": 53.23898792266846
+        },
+        {
+          "albertMs": 4.642009735107422,
+          "alignmentMs": 0.4630088806152344,
+          "cpuFallbackStages": [],
+          "noiseMs": 35.476088523864746,
+          "postAlbertMs": 2.0760297775268555,
+          "prosodyMs": 2.0570755004882812,
+          "tailMs": 692.0409202575684,
+          "vocoderMs": 46.122074127197266
+        }
+      ],
+      "voice": "am_michael"
+    },
+    {
+      "audioSeconds": 5.525,
+      "cached": false,
+      "caseID": "am_michael-03",
+      "chunks": 1,
+      "completed": true,
+      "generationMS": 1339.3210172653198,
+      "language": "en-US",
+      "loadMS": 0,
+      "stages": [
+        {
+          "albertMs": 6.322979927062988,
+          "alignmentMs": 0.6090402603149414,
+          "cpuFallbackStages": [],
+          "noiseMs": 58.25603008270264,
+          "postAlbertMs": 2.7320384979248047,
+          "prosodyMs": 3.1300783157348633,
+          "tailMs": 1178.3850193023682,
+          "vocoderMs": 75.42002201080322
+        }
+      ],
+      "voice": "am_michael"
+    },
+    {
+      "audioSeconds": 6.3,
+      "cached": false,
+      "caseID": "am_michael-04",
+      "chunks": 2,
+      "completed": true,
+      "generationMS": 1450.5729675292969,
+      "language": "en-US",
+      "loadMS": 0,
+      "stages": [
+        {
+          "albertMs": 4.701972007751465,
+          "alignmentMs": 0.45108795166015625,
+          "cpuFallbackStages": [],
+          "noiseMs": 42.518019676208496,
+          "postAlbertMs": 2.2029876708984375,
+          "prosodyMs": 2.3419857025146484,
+          "tailMs": 783.2000255584717,
+          "vocoderMs": 50.2779483795166
+        },
+        {
+          "albertMs": 2.5610923767089844,
+          "alignmentMs": 0.6380081176757812,
+          "cpuFallbackStages": [],
+          "noiseMs": 21.39604091644287,
+          "postAlbertMs": 1.4679431915283203,
+          "prosodyMs": 1.6570091247558594,
+          "tailMs": 486.77098751068115,
+          "vocoderMs": 33.64205360412598
+        }
+      ],
+      "voice": "am_michael"
+    },
+    {
+      "audioSeconds": 0,
+      "cached": false,
+      "caseID": "am_michael-05",
+      "chunks": 0,
+      "completed": false,
+      "failure": "English pronunciation has unknown words; quality gate failed.",
+      "generationMS": 0,
+      "language": "en-US",
+      "loadMS": 0,
+      "stages": [],
+      "voice": "am_michael"
+    },
+    {
+      "audioSeconds": 5.15,
+      "cached": false,
+      "caseID": "am_michael-06",
+      "chunks": 1,
+      "completed": true,
+      "generationMS": 1213.0199670791626,
+      "language": "en-US",
+      "loadMS": 0,
+      "stages": [
+        {
+          "albertMs": 6.450057029724121,
+          "alignmentMs": 0.4590749740600586,
+          "cpuFallbackStages": [],
+          "noiseMs": 56.8469762802124,
+          "postAlbertMs": 2.6760101318359375,
+          "prosodyMs": 2.7779340744018555,
+          "tailMs": 1060.7489347457886,
+          "vocoderMs": 69.64898109436035
+        }
+      ],
+      "voice": "am_michael"
+    },
+    {
+      "audioSeconds": 4.8,
+      "cached": false,
+      "caseID": "am_michael-07",
+      "chunks": 2,
+      "completed": true,
+      "generationMS": 1104.0029525756836,
+      "language": "en-US",
+      "loadMS": 0,
+      "stages": [
+        {
+          "albertMs": 2.50399112701416,
+          "alignmentMs": 0.3619194030761719,
+          "cpuFallbackStages": [],
+          "noiseMs": 27.61995792388916,
+          "postAlbertMs": 1.465916633605957,
+          "prosodyMs": 1.732945442199707,
+          "tailMs": 517.8550481796265,
+          "vocoderMs": 37.21296787261963
+        },
+        {
+          "albertMs": 2.8409957885742188,
+          "alignmentMs": 0.55694580078125,
+          "cpuFallbackStages": [],
+          "noiseMs": 20.89095115661621,
+          "postAlbertMs": 1.4809370040893555,
+          "prosodyMs": 1.550912857055664,
+          "tailMs": 441.8959617614746,
+          "vocoderMs": 32.106995582580566
+        }
+      ],
+      "voice": "am_michael"
+    },
+    {
+      "audioSeconds": 6.025,
+      "cached": false,
+      "caseID": "am_michael-08",
+      "chunks": 2,
+      "completed": true,
+      "generationMS": 1367.9850101470947,
+      "language": "en-US",
+      "loadMS": 0,
+      "stages": [
+        {
+          "albertMs": 4.044055938720703,
+          "alignmentMs": 0.3590583801269531,
+          "cpuFallbackStages": [],
+          "noiseMs": 25.886058807373047,
+          "postAlbertMs": 1.6480684280395508,
+          "prosodyMs": 1.8149614334106445,
+          "tailMs": 547.8099584579468,
+          "vocoderMs": 36.842942237854004
+        },
+        {
+          "albertMs": 4.166007041931152,
+          "alignmentMs": 0.3819465637207031,
+          "cpuFallbackStages": [],
+          "noiseMs": 31.790971755981445,
+          "postAlbertMs": 1.8340349197387695,
+          "prosodyMs": 1.8650293350219727,
+          "tailMs": 650.0020027160645,
+          "vocoderMs": 43.038010597229004
+        }
+      ],
+      "voice": "am_michael"
+    },
+    {
+      "audioSeconds": 21.95,
+      "cached": false,
+      "caseID": "am_michael-09",
+      "chunks": 5,
+      "completed": true,
+      "generationMS": 5127.31397151947,
+      "language": "en-US",
+      "loadMS": 0,
+      "stages": [
+        {
+          "albertMs": 4.3430328369140625,
+          "alignmentMs": 0.4049539566040039,
+          "cpuFallbackStages": [],
+          "noiseMs": 35.03692150115967,
+          "postAlbertMs": 1.8219947814941406,
+          "prosodyMs": 1.9199848175048828,
+          "tailMs": 651.8479585647583,
+          "vocoderMs": 44.44396495819092
+        },
+        {
+          "albertMs": 6.597042083740234,
+          "alignmentMs": 0.576019287109375,
+          "cpuFallbackStages": [],
+          "noiseMs": 60.98496913909912,
+          "postAlbertMs": 2.8879642486572266,
+          "prosodyMs": 3.145933151245117,
+          "tailMs": 1226.963996887207,
+          "vocoderMs": 81.44700527191162
+        },
+        {
+          "albertMs": 6.083011627197266,
+          "alignmentMs": 0.4628896713256836,
+          "cpuFallbackStages": [],
+          "noiseMs": 53.721070289611816,
+          "postAlbertMs": 2.5780200958251953,
+          "prosodyMs": 2.7300119400024414,
+          "tailMs": 1038.375973701477,
+          "vocoderMs": 66.72000885009766
+        },
+        {
+          "albertMs": 4.284024238586426,
+          "alignmentMs": 0.3769397735595703,
+          "cpuFallbackStages": [],
+          "noiseMs": 55.45496940612793,
+          "postAlbertMs": 1.8600225448608398,
+          "prosodyMs": 21.167993545532227,
+          "tailMs": 614.5360469818115,
+          "vocoderMs": 56.4730167388916
+        },
+        {
+          "albertMs": 4.778027534484863,
+          "alignmentMs": 0.4379749298095703,
+          "cpuFallbackStages": [],
+          "noiseMs": 44.87502574920654,
+          "postAlbertMs": 2.205014228820801,
+          "prosodyMs": 2.4319887161254883,
+          "tailMs": 916.8130159378052,
+          "vocoderMs": 55.18603324890137
+        }
+      ],
+      "voice": "am_michael"
+    },
+    {
+      "audioSeconds": 6,
+      "cached": false,
+      "caseID": "am_michael-10",
+      "chunks": 2,
+      "completed": true,
+      "generationMS": 1392.907977104187,
+      "language": "en-US",
+      "loadMS": 0,
+      "stages": [
+        {
+          "albertMs": 4.6520233154296875,
+          "alignmentMs": 0.36597251892089844,
+          "cpuFallbackStages": [],
+          "noiseMs": 29.934048652648926,
+          "postAlbertMs": 1.7889738082885742,
+          "prosodyMs": 1.7930269241333008,
+          "tailMs": 537.8459692001343,
+          "vocoderMs": 35.264015197753906
+        },
+        {
+          "albertMs": 4.7980546951293945,
+          "alignmentMs": 0.44906139373779297,
+          "cpuFallbackStages": [],
+          "noiseMs": 35.141944885253906,
+          "postAlbertMs": 2.048015594482422,
+          "prosodyMs": 2.144932746887207,
+          "tailMs": 674.4389533996582,
+          "vocoderMs": 45.81499099731445
+        }
+      ],
+      "voice": "am_michael"
+    },
+    {
+      "audioSeconds": 3.25,
+      "cached": false,
+      "caseID": "pf_dora-01",
+      "chunks": 2,
+      "completed": true,
+      "generationMS": 757.4360370635986,
+      "language": "pt-BR",
+      "loadMS": 0,
+      "stages": [
+        {
+          "albertMs": 1.672983169555664,
+          "alignmentMs": 0.39708614349365234,
+          "cpuFallbackStages": [],
+          "noiseMs": 10.007977485656738,
+          "postAlbertMs": 0.988006591796875,
+          "prosodyMs": 0.8350610733032227,
+          "tailMs": 163.88297080993652,
+          "vocoderMs": 13.187885284423828
+        },
+        {
+          "albertMs": 4.518985748291016,
+          "alignmentMs": 0.41806697845458984,
+          "cpuFallbackStages": [],
+          "noiseMs": 24.153947830200195,
+          "postAlbertMs": 1.8999576568603516,
+          "prosodyMs": 1.6149282455444336,
+          "tailMs": 483.705997467041,
+          "vocoderMs": 34.002065658569336
+        }
+      ],
+      "voice": "pf_dora"
+    },
+    {
+      "audioSeconds": 6.5,
+      "cached": false,
+      "caseID": "pf_dora-02",
+      "chunks": 2,
+      "completed": true,
+      "generationMS": 1504.8519372940063,
+      "language": "pt-BR",
+      "loadMS": 0,
+      "stages": [
+        {
+          "albertMs": 6.300926208496094,
+          "alignmentMs": 0.5189180374145508,
+          "cpuFallbackStages": [],
+          "noiseMs": 33.69104862213135,
+          "postAlbertMs": 2.6110410690307617,
+          "prosodyMs": 2.1500587463378906,
+          "tailMs": 699.9330520629883,
+          "vocoderMs": 45.84991931915283
+        },
+        {
+          "albertMs": 5.035042762756348,
+          "alignmentMs": 0.4919767379760742,
+          "cpuFallbackStages": [],
+          "noiseMs": 31.385064125061035,
+          "postAlbertMs": 2.2600889205932617,
+          "prosodyMs": 1.7849206924438477,
+          "tailMs": 616.163969039917,
+          "vocoderMs": 39.511919021606445
+        }
+      ],
+      "voice": "pf_dora"
+    },
+    {
+      "audioSeconds": 4.575,
+      "cached": false,
+      "caseID": "pf_dora-03",
+      "chunks": 1,
+      "completed": true,
+      "generationMS": 1084.0719938278198,
+      "language": "pt-BR",
+      "loadMS": 0,
+      "stages": [
+        {
+          "albertMs": 6.592988967895508,
+          "alignmentMs": 0.45096874237060547,
+          "cpuFallbackStages": [],
+          "noiseMs": 50.08995532989502,
+          "postAlbertMs": 2.812981605529785,
+          "prosodyMs": 2.5730133056640625,
+          "tailMs": 948.199987411499,
+          "vocoderMs": 60.81998348236084
+        }
+      ],
+      "voice": "pf_dora"
+    },
+    {
+      "audioSeconds": 5.6,
+      "cached": false,
+      "caseID": "pf_dora-04",
+      "chunks": 2,
+      "completed": true,
+      "generationMS": 1315.000057220459,
+      "language": "pt-BR",
+      "loadMS": 0,
+      "stages": [
+        {
+          "albertMs": 6.916046142578125,
+          "alignmentMs": 0.43594837188720703,
+          "cpuFallbackStages": [],
+          "noiseMs": 39.57200050354004,
+          "postAlbertMs": 2.44903564453125,
+          "prosodyMs": 2.0999908447265625,
+          "tailMs": 793.9460277557373,
+          "vocoderMs": 50.59802532196045
+        },
+        {
+          "albertMs": 2.5550127029418945,
+          "alignmentMs": 0.6920099258422852,
+          "cpuFallbackStages": [],
+          "noiseMs": 19.427895545959473,
+          "postAlbertMs": 1.3519525527954102,
+          "prosodyMs": 1.5069246292114258,
+          "tailMs": 353.07204723358154,
+          "vocoderMs": 25.601983070373535
+        }
+      ],
+      "voice": "pf_dora"
+    },
+    {
+      "audioSeconds": 3.65,
+      "cached": false,
+      "caseID": "pf_dora-05",
+      "chunks": 1,
+      "completed": true,
+      "generationMS": 873.384952545166,
+      "language": "pt-BR",
+      "loadMS": 0,
+      "stages": [
+        {
+          "albertMs": 6.659984588623047,
+          "alignmentMs": 0.44095516204833984,
+          "cpuFallbackStages": [],
+          "noiseMs": 41.087985038757324,
+          "postAlbertMs": 2.7289390563964844,
+          "prosodyMs": 2.135038375854492,
+          "tailMs": 760.6240510940552,
+          "vocoderMs": 49.19791221618652
+        }
+      ],
+      "voice": "pf_dora"
+    },
+    {
+      "audioSeconds": 5.35,
+      "cached": false,
+      "caseID": "pf_dora-06",
+      "chunks": 1,
+      "completed": true,
+      "generationMS": 1261.0870599746704,
+      "language": "pt-BR",
+      "loadMS": 0,
+      "stages": [
+        {
+          "albertMs": 8.491992950439453,
+          "alignmentMs": 0.8729696273803711,
+          "cpuFallbackStages": [],
+          "noiseMs": 51.185011863708496,
+          "postAlbertMs": 3.5260915756225586,
+          "prosodyMs": 2.7360916137695312,
+          "tailMs": 1111.1119985580444,
+          "vocoderMs": 69.19801235198975
+        }
+      ],
+      "voice": "pf_dora"
+    },
+    {
+      "audioSeconds": 4.25,
+      "cached": false,
+      "caseID": "pf_dora-07",
+      "chunks": 2,
+      "completed": true,
+      "generationMS": 995.9290027618408,
+      "language": "pt-BR",
+      "loadMS": 0,
+      "stages": [
+        {
+          "albertMs": 2.8520822525024414,
+          "alignmentMs": 0.9200572967529297,
+          "cpuFallbackStages": [],
+          "noiseMs": 20.69997787475586,
+          "postAlbertMs": 1.5729665756225586,
+          "prosodyMs": 1.4619827270507812,
+          "tailMs": 372.5029230117798,
+          "vocoderMs": 29.260993003845215
+        },
+        {
+          "albertMs": 4.307031631469727,
+          "alignmentMs": 0.34606456756591797,
+          "cpuFallbackStages": [],
+          "noiseMs": 25.227069854736328,
+          "postAlbertMs": 1.716017723083496,
+          "prosodyMs": 1.629948616027832,
+          "tailMs": 487.947940826416,
+          "vocoderMs": 33.003926277160645
+        }
+      ],
+      "voice": "pf_dora"
+    },
+    {
+      "audioSeconds": 5.725,
+      "cached": false,
+      "caseID": "pf_dora-08",
+      "chunks": 2,
+      "completed": true,
+      "generationMS": 1342.4110412597656,
+      "language": "pt-BR",
+      "loadMS": 0,
+      "stages": [
+        {
+          "albertMs": 4.794001579284668,
+          "alignmentMs": 0.3941059112548828,
+          "cpuFallbackStages": [],
+          "noiseMs": 25.952935218811035,
+          "postAlbertMs": 2.025008201599121,
+          "prosodyMs": 1.696944236755371,
+          "tailMs": 513.8510465621948,
+          "vocoderMs": 35.111069679260254
+        },
+        {
+          "albertMs": 4.789948463439941,
+          "alignmentMs": 0.44906139373779297,
+          "cpuFallbackStages": [],
+          "noiseMs": 33.4169864654541,
+          "postAlbertMs": 2.1660327911376953,
+          "prosodyMs": 2.0040273666381836,
+          "tailMs": 657.9760313034058,
+          "vocoderMs": 41.999101638793945
+        }
+      ],
+      "voice": "pf_dora"
+    },
+    {
+      "audioSeconds": 23.175,
+      "cached": false,
+      "caseID": "pf_dora-09",
+      "chunks": 6,
+      "completed": true,
+      "generationMS": 5380.596995353699,
+      "language": "pt-BR",
+      "loadMS": 0,
+      "stages": [
+        {
+          "albertMs": 6.229043006896973,
+          "alignmentMs": 0.5419254302978516,
+          "cpuFallbackStages": [],
+          "noiseMs": 46.8900203704834,
+          "postAlbertMs": 2.7129650115966797,
+          "prosodyMs": 2.2760629653930664,
+          "tailMs": 895.4730033874512,
+          "vocoderMs": 55.342912673950195
+        },
+        {
+          "albertMs": 8.134007453918457,
+          "alignmentMs": 0.47397613525390625,
+          "cpuFallbackStages": [],
+          "noiseMs": 56.620001792907715,
+          "postAlbertMs": 3.278017044067383,
+          "prosodyMs": 2.777099609375,
+          "tailMs": 1107.2150468826294,
+          "vocoderMs": 70.41406631469727
+        },
+        {
+          "albertMs": 7.050037384033203,
+          "alignmentMs": 0.5029439926147461,
+          "cpuFallbackStages": [],
+          "noiseMs": 51.43308639526367,
+          "postAlbertMs": 3.127932548522949,
+          "prosodyMs": 2.4410486221313477,
+          "tailMs": 965.6239748001099,
+          "vocoderMs": 61.100006103515625
+        },
+        {
+          "albertMs": 4.668951034545898,
+          "alignmentMs": 0.3839731216430664,
+          "cpuFallbackStages": [],
+          "noiseMs": 28.728961944580078,
+          "postAlbertMs": 1.9599199295043945,
+          "prosodyMs": 1.7610788345336914,
+          "tailMs": 582.6650857925415,
+          "vocoderMs": 38.57600688934326
+        },
+        {
+          "albertMs": 4.812002182006836,
+          "alignmentMs": 0.39899349212646484,
+          "cpuFallbackStages": [],
+          "noiseMs": 30.804038047790527,
+          "postAlbertMs": 2.2330284118652344,
+          "prosodyMs": 1.819014549255371,
+          "tailMs": 603.2569408416748,
+          "vocoderMs": 39.94596004486084
+        },
+        {
+          "albertMs": 4.516959190368652,
+          "alignmentMs": 0.4229545593261719,
+          "cpuFallbackStages": [],
+          "noiseMs": 27.72808074951172,
+          "postAlbertMs": 2.0389556884765625,
+          "prosodyMs": 1.8450021743774414,
+          "tailMs": 558.2530498504639,
+          "vocoderMs": 38.162946701049805
+        }
+      ],
+      "voice": "pf_dora"
+    },
+    {
+      "audioSeconds": 5.55,
+      "cached": false,
+      "caseID": "pf_dora-10",
+      "chunks": 2,
+      "completed": true,
+      "generationMS": 1296.2310314178467,
+      "language": "pt-BR",
+      "loadMS": 0,
+      "stages": [
+        {
+          "albertMs": 4.356026649475098,
+          "alignmentMs": 0.36907196044921875,
+          "cpuFallbackStages": [],
+          "noiseMs": 30.303001403808594,
+          "postAlbertMs": 2.050042152404785,
+          "prosodyMs": 1.8728971481323242,
+          "tailMs": 575.3710269927979,
+          "vocoderMs": 40.045976638793945
+        },
+        {
+          "albertMs": 4.022002220153809,
+          "alignmentMs": 0.37992000579833984,
+          "cpuFallbackStages": [],
+          "noiseMs": 26.7179012298584,
+          "postAlbertMs": 1.8820762634277344,
+          "prosodyMs": 1.750946044921875,
+          "tailMs": 554.0320873260498,
+          "vocoderMs": 37.33706474304199
+        }
+      ],
+      "voice": "pf_dora"
+    },
+    {
+      "audioSeconds": 3.325,
+      "cached": false,
+      "caseID": "pm_alex-01",
+      "chunks": 2,
+      "completed": true,
+      "generationMS": 777.2539854049683,
+      "language": "pt-BR",
+      "loadMS": 0,
+      "stages": [
+        {
+          "albertMs": 1.878976821899414,
+          "alignmentMs": 0.3650188446044922,
+          "cpuFallbackStages": [],
+          "noiseMs": 8.83495807647705,
+          "postAlbertMs": 0.9839534759521484,
+          "prosodyMs": 0.7539987564086914,
+          "tailMs": 165.6099557876587,
+          "vocoderMs": 13.283014297485352
+        },
+        {
+          "albertMs": 4.521012306213379,
+          "alignmentMs": 0.5000829696655273,
+          "cpuFallbackStages": [],
+          "noiseMs": 25.009989738464355,
+          "postAlbertMs": 1.9921064376831055,
+          "prosodyMs": 1.907944679260254,
+          "tailMs": 505.5290460586548,
+          "vocoderMs": 35.43591499328613
+        }
+      ],
+      "voice": "pm_alex"
+    },
+    {
+      "audioSeconds": 6.575,
+      "cached": false,
+      "caseID": "pm_alex-02",
+      "chunks": 2,
+      "completed": true,
+      "generationMS": 1563.7240409851074,
+      "language": "pt-BR",
+      "loadMS": 0,
+      "stages": [
+        {
+          "albertMs": 5.787014961242676,
+          "alignmentMs": 0.4400014877319336,
+          "cpuFallbackStages": [],
+          "noiseMs": 37.580013275146484,
+          "postAlbertMs": 2.485036849975586,
+          "prosodyMs": 2.0040273666381836,
+          "tailMs": 726.7330884933472,
+          "vocoderMs": 45.52602767944336
+        },
+        {
+          "albertMs": 4.914045333862305,
+          "alignmentMs": 0.4628896713256836,
+          "cpuFallbackStages": [],
+          "noiseMs": 32.29200839996338,
+          "postAlbertMs": 2.308011054992676,
+          "prosodyMs": 17.34006404876709,
+          "tailMs": 623.9259243011475,
+          "vocoderMs": 44.29507255554199
+        }
+      ],
+      "voice": "pm_alex"
+    },
+    {
+      "audioSeconds": 4.6,
+      "cached": false,
+      "caseID": "pm_alex-03",
+      "chunks": 1,
+      "completed": true,
+      "generationMS": 1090.9329652786255,
+      "language": "pt-BR",
+      "loadMS": 0,
+      "stages": [
+        {
+          "albertMs": 6.580948829650879,
+          "alignmentMs": 0.5700588226318359,
+          "cpuFallbackStages": [],
+          "noiseMs": 48.790931701660156,
+          "postAlbertMs": 2.8100013732910156,
+          "prosodyMs": 2.4099349975585938,
+          "tailMs": 954.7289609909058,
+          "vocoderMs": 62.744975090026855
+        }
+      ],
+      "voice": "pm_alex"
+    },
+    {
+      "audioSeconds": 5.725,
+      "cached": false,
+      "caseID": "pm_alex-04",
+      "chunks": 2,
+      "completed": true,
+      "generationMS": 1335.2259397506714,
+      "language": "pt-BR",
+      "loadMS": 0,
+      "stages": [
+        {
+          "albertMs": 6.299018859863281,
+          "alignmentMs": 0.47707557678222656,
+          "cpuFallbackStages": [],
+          "noiseMs": 41.365981101989746,
+          "postAlbertMs": 2.704024314880371,
+          "prosodyMs": 2.32696533203125,
+          "tailMs": 797.6950407028198,
+          "vocoderMs": 51.67090892791748
+        },
+        {
+          "albertMs": 2.79390811920166,
+          "alignmentMs": 0.5910396575927734,
+          "cpuFallbackStages": [],
+          "noiseMs": 20.218968391418457,
+          "postAlbertMs": 1.5289783477783203,
+          "prosodyMs": 1.4369487762451172,
+          "tailMs": 362.9300594329834,
+          "vocoderMs": 27.70400047302246
+        }
+      ],
+      "voice": "pm_alex"
+    },
+    {
+      "audioSeconds": 3.725,
+      "cached": false,
+      "caseID": "pm_alex-05",
+      "chunks": 1,
+      "completed": true,
+      "generationMS": 880.4800510406494,
+      "language": "pt-BR",
+      "loadMS": 0,
+      "stages": [
+        {
+          "albertMs": 6.520986557006836,
+          "alignmentMs": 0.44608116149902344,
+          "cpuFallbackStages": [],
+          "noiseMs": 38.493990898132324,
+          "postAlbertMs": 2.6509761810302734,
+          "prosodyMs": 2.1009445190429688,
+          "tailMs": 771.0219621658325,
+          "vocoderMs": 48.80404472351074
+        }
+      ],
+      "voice": "pm_alex"
+    },
+    {
+      "audioSeconds": 5.425,
+      "cached": false,
+      "caseID": "pm_alex-06",
+      "chunks": 1,
+      "completed": true,
+      "generationMS": 1309.3290328979492,
+      "language": "pt-BR",
+      "loadMS": 0,
+      "stages": [
+        {
+          "albertMs": 8.734941482543945,
+          "alignmentMs": 0.47004222869873047,
+          "cpuFallbackStages": [],
+          "noiseMs": 66.63191318511963,
+          "postAlbertMs": 3.2480955123901367,
+          "prosodyMs": 2.794981002807617,
+          "tailMs": 1140.2409076690674,
+          "vocoderMs": 72.32403755187988
+        }
+      ],
+      "voice": "pm_alex"
+    },
+    {
+      "audioSeconds": 4.4,
+      "cached": false,
+      "caseID": "pm_alex-07",
+      "chunks": 2,
+      "completed": true,
+      "generationMS": 1023.374080657959,
+      "language": "pt-BR",
+      "loadMS": 0,
+      "stages": [
+        {
+          "albertMs": 2.838015556335449,
+          "alignmentMs": 0.7860660552978516,
+          "cpuFallbackStages": [],
+          "noiseMs": 21.836042404174805,
+          "postAlbertMs": 1.6640424728393555,
+          "prosodyMs": 1.5079975128173828,
+          "tailMs": 388.46004009246826,
+          "vocoderMs": 29.24501895904541
+        },
+        {
+          "albertMs": 4.284977912902832,
+          "alignmentMs": 0.3319978713989258,
+          "cpuFallbackStages": [],
+          "noiseMs": 26.256918907165527,
+          "postAlbertMs": 1.8649101257324219,
+          "prosodyMs": 1.4729499816894531,
+          "tailMs": 494.1920042037964,
+          "vocoderMs": 35.830020904541016
+        }
+      ],
+      "voice": "pm_alex"
+    },
+    {
+      "audioSeconds": 5.75,
+      "cached": false,
+      "caseID": "pm_alex-08",
+      "chunks": 2,
+      "completed": true,
+      "generationMS": 1347.4689722061157,
+      "language": "pt-BR",
+      "loadMS": 0,
+      "stages": [
+        {
+          "albertMs": 4.442930221557617,
+          "alignmentMs": 0.39505958557128906,
+          "cpuFallbackStages": [],
+          "noiseMs": 27.868986129760742,
+          "postAlbertMs": 1.9879341125488281,
+          "prosodyMs": 1.8069744110107422,
+          "tailMs": 531.2429666519165,
+          "vocoderMs": 35.321950912475586
+        },
+        {
+          "albertMs": 4.840970039367676,
+          "alignmentMs": 0.4019737243652344,
+          "cpuFallbackStages": [],
+          "noiseMs": 33.288002014160156,
+          "postAlbertMs": 2.252936363220215,
+          "prosodyMs": 1.8129348754882812,
+          "tailMs": 640.7599449157715,
+          "vocoderMs": 42.495012283325195
+        }
+      ],
+      "voice": "pm_alex"
+    },
+    {
+      "audioSeconds": 23.75,
+      "cached": false,
+      "caseID": "pm_alex-09",
+      "chunks": 6,
+      "completed": true,
+      "generationMS": 5540.424942970276,
+      "language": "pt-BR",
+      "loadMS": 0,
+      "stages": [
+        {
+          "albertMs": 6.5490007400512695,
+          "alignmentMs": 0.5090236663818359,
+          "cpuFallbackStages": [],
+          "noiseMs": 45.989036560058594,
+          "postAlbertMs": 2.86102294921875,
+          "prosodyMs": 2.3180246353149414,
+          "tailMs": 906.3819646835327,
+          "vocoderMs": 55.25398254394531
+        },
+        {
+          "albertMs": 8.470892906188965,
+          "alignmentMs": 0.5010366439819336,
+          "cpuFallbackStages": [],
+          "noiseMs": 61.41006946563721,
+          "postAlbertMs": 3.4149885177612305,
+          "prosodyMs": 2.8220415115356445,
+          "tailMs": 1127.6639699935913,
+          "vocoderMs": 72.79503345489502
+        },
+        {
+          "albertMs": 6.392955780029297,
+          "alignmentMs": 0.5249977111816406,
+          "cpuFallbackStages": [],
+          "noiseMs": 54.25000190734863,
+          "postAlbertMs": 2.8699636459350586,
+          "prosodyMs": 2.358078956604004,
+          "tailMs": 1012.6280784606934,
+          "vocoderMs": 64.45300579071045
+        },
+        {
+          "albertMs": 4.7969818115234375,
+          "alignmentMs": 0.46694278717041016,
+          "cpuFallbackStages": [],
+          "noiseMs": 31.234025955200195,
+          "postAlbertMs": 2.0869970321655273,
+          "prosodyMs": 1.743912696838379,
+          "tailMs": 597.5010395050049,
+          "vocoderMs": 40.46189785003662
+        },
+        {
+          "albertMs": 4.668951034545898,
+          "alignmentMs": 0.4659891128540039,
+          "cpuFallbackStages": [],
+          "noiseMs": 32.52291679382324,
+          "postAlbertMs": 2.0929574966430664,
+          "prosodyMs": 1.9490718841552734,
+          "tailMs": 614.9020195007324,
+          "vocoderMs": 41.74506664276123
+        },
+        {
+          "albertMs": 5.000948905944824,
+          "alignmentMs": 0.3889799118041992,
+          "cpuFallbackStages": [],
+          "noiseMs": 31.415939331054688,
+          "postAlbertMs": 2.095937728881836,
+          "prosodyMs": 1.7229318618774414,
+          "tailMs": 586.8579149246216,
+          "vocoderMs": 38.35403919219971
+        }
+      ],
+      "voice": "pm_alex"
+    },
+    {
+      "audioSeconds": 5.7,
+      "cached": false,
+      "caseID": "pm_alex-10",
+      "chunks": 2,
+      "completed": true,
+      "generationMS": 1326.578974723816,
+      "language": "pt-BR",
+      "loadMS": 0,
+      "stages": [
+        {
+          "albertMs": 4.307031631469727,
+          "alignmentMs": 0.4649162292480469,
+          "cpuFallbackStages": [],
+          "noiseMs": 28.884053230285645,
+          "postAlbertMs": 1.9779205322265625,
+          "prosodyMs": 1.8280744552612305,
+          "tailMs": 576.185941696167,
+          "vocoderMs": 39.154052734375
+        },
+        {
+          "albertMs": 4.877924919128418,
+          "alignmentMs": 0.3879070281982422,
+          "cpuFallbackStages": [],
+          "noiseMs": 28.81300449371338,
+          "postAlbertMs": 1.97601318359375,
+          "prosodyMs": 1.7440319061279297,
+          "tailMs": 581.866979598999,
+          "vocoderMs": 38.08796405792236
+        }
+      ],
+      "voice": "pm_alex"
+    }
+  ]
+}

@@ -1,0 +1,290 @@
+{
+  "assessment": "Interrupted/invalid locked-phone reliability batch. Four successful transfers, only one entirely backgrounded; 16 rapid transport errors. Watch was observed outside the test app. Subsequent harness stops on the first transport error.",
+  "date": "2026-10-17",
+  "debugger": false,
+  "matchedPhoneRuns": [
+    {
+      "backgroundAtFinish": false,
+      "backgroundAtStart": true,
+      "elapsedMS": 22839.444994926453,
+      "metrics": {
+        "audioSeconds": 3.8,
+        "cached": false,
+        "caseID": "af_heart-01",
+        "chunks": 2,
+        "completed": true,
+        "generationMS": 2595.1980352401733,
+        "language": "en-US",
+        "loadMS": 20225.498914718628,
+        "stages": [
+          {
+            "albertMs": 224.02703762054443,
+            "alignmentMs": 1.9390583038330078,
+            "cpuFallbackStages": [],
+            "noiseMs": 87.43405342102051,
+            "postAlbertMs": 10.135054588317871,
+            "prosodyMs": 7.398009300231934,
+            "tailMs": 528.4000635147095,
+            "vocoderMs": 145.49100399017334
+          },
+          {
+            "albertMs": 231.41396045684814,
+            "alignmentMs": 2.056002616882324,
+            "cpuFallbackStages": [],
+            "noiseMs": 151.99601650238037,
+            "postAlbertMs": 9.020090103149414,
+            "prosodyMs": 6.78098201751709,
+            "tailMs": 891.1850452423096,
+            "vocoderMs": 234.93003845214844
+          }
+        ],
+        "voice": "af_heart"
+      },
+      "peakRSSBytes": 436813824,
+      "thermalState": 0,
+      "watch": {
+        "elapsedMS": "23996",
+        "reason": "audio transferred",
+        "success": "true"
+      }
+    },
+    {
+      "backgroundAtFinish": false,
+      "backgroundAtStart": false,
+      "elapsedMS": 4017.0300006866455,
+      "metrics": {
+        "audioSeconds": 6.225,
+        "cached": false,
+        "caseID": "af_heart-02",
+        "chunks": 2,
+        "completed": true,
+        "generationMS": 4006.6850185394287,
+        "language": "en-US",
+        "loadMS": 0,
+        "stages": [
+          {
+            "albertMs": 273.1959819793701,
+            "alignmentMs": 6.394028663635254,
+            "cpuFallbackStages": [],
+            "noiseMs": 253.9689540863037,
+            "postAlbertMs": 11.248946189880371,
+            "prosodyMs": 8.864045143127441,
+            "tailMs": 1303.7469387054443,
+            "vocoderMs": 338.37997913360596
+          },
+          {
+            "albertMs": 246.30796909332275,
+            "alignmentMs": 1.9309520721435547,
+            "cpuFallbackStages": [],
+            "noiseMs": 187.23905086517334,
+            "postAlbertMs": 10.282039642333984,
+            "prosodyMs": 7.641077041625977,
+            "tailMs": 1044.411063194275,
+            "vocoderMs": 269.58703994750977
+          }
+        ],
+        "voice": "af_heart"
+      },
+      "peakRSSBytes": 505839616,
+      "thermalState": 0,
+      "watch": {
+        "elapsedMS": "5693",
+        "reason": "audio transferred",
+        "success": "true"
+      }
+    },
+    {
+      "backgroundAtFinish": true,
+      "backgroundAtStart": false,
+      "elapsedMS": 2997.032046318054,
+      "metrics": {
+        "audioSeconds": 3.8,
+        "cached": false,
+        "caseID": "af_heart-01",
+        "chunks": 2,
+        "completed": true,
+        "generationMS": 2987.3440265655518,
+        "language": "en-US",
+        "loadMS": 0,
+        "stages": [
+          {
+            "albertMs": 245.29695510864258,
+            "alignmentMs": 1.3859272003173828,
+            "cpuFallbackStages": [],
+            "noiseMs": 81.29894733428955,
+            "postAlbertMs": 6.371974945068359,
+            "prosodyMs": 5.106925964355469,
+            "tailMs": 506.77692890167236,
+            "vocoderMs": 143.71991157531738
+          },
+          {
+            "albertMs": 234.57801342010498,
+            "alignmentMs": 1.2689828872680664,
+            "cpuFallbackStages": [],
+            "noiseMs": 159.19995307922363,
+            "postAlbertMs": 9.23299789428711,
+            "prosodyMs": 6.210088729858398,
+            "tailMs": 1328.879952430725,
+            "vocoderMs": 220.82293033599854
+          }
+        ],
+        "voice": "af_heart"
+      },
+      "peakRSSBytes": 505839616,
+      "thermalState": 0,
+      "watch": {
+        "elapsedMS": "3655",
+        "reason": "audio transferred",
+        "success": "true"
+      }
+    },
+    {
+      "backgroundAtFinish": true,
+      "backgroundAtStart": true,
+      "elapsedMS": 8752.22098827362,
+      "metrics": {
+        "audioSeconds": 6.225,
+        "cached": false,
+        "caseID": "af_heart-02",
+        "chunks": 2,
+        "completed": true,
+        "generationMS": 8740.976929664612,
+        "language": "en-US",
+        "loadMS": 0,
+        "stages": [
+          {
+            "albertMs": 326.6489505767822,
+            "alignmentMs": 3.134012222290039,
+            "cpuFallbackStages": [],
+            "noiseMs": 370.64194679260254,
+            "postAlbertMs": 22.768020629882812,
+            "prosodyMs": 21.607041358947754,
+            "tailMs": 3092.734932899475,
+            "vocoderMs": 800.6839752197266
+          },
+          {
+            "albertMs": 454.58102226257324,
+            "alignmentMs": 2.3250579833984375,
+            "cpuFallbackStages": [],
+            "noiseMs": 415.585994720459,
+            "postAlbertMs": 14.796018600463867,
+            "prosodyMs": 14.860033988952637,
+            "tailMs": 2520.354986190796,
+            "vocoderMs": 572.9010105133057
+          }
+        ],
+        "voice": "af_heart"
+      },
+      "peakRSSBytes": 505839616,
+      "thermalState": 0,
+      "watch": {
+        "elapsedMS": "12398",
+        "reason": "audio transferred",
+        "success": "true"
+      }
+    }
+  ],
+  "pipelineVersion": "v2-punctuation",
+  "watchRuns": [
+    {
+      "elapsedMS": "23996",
+      "reason": "audio transferred",
+      "success": "true"
+    },
+    {
+      "elapsedMS": "5693",
+      "reason": "audio transferred",
+      "success": "true"
+    },
+    {
+      "elapsedMS": "3655",
+      "reason": "audio transferred",
+      "success": "true"
+    },
+    {
+      "elapsedMS": "12398",
+      "reason": "audio transferred",
+      "success": "true"
+    },
+    {
+      "elapsedMS": "40",
+      "reason": "connection unavailable",
+      "success": "false"
+    },
+    {
+      "elapsedMS": "3",
+      "reason": "connection unavailable",
+      "success": "false"
+    },
+    {
+      "elapsedMS": "28",
+      "reason": "connection unavailable",
+      "success": "false"
+    },
+    {
+      "elapsedMS": "83",
+      "reason": "connection unavailable",
+      "success": "false"
+    },
+    {
+      "elapsedMS": "24",
+      "reason": "connection unavailable",
+      "success": "false"
+    },
+    {
+      "elapsedMS": "68",
+      "reason": "connection unavailable",
+      "success": "false"
+    },
+    {
+      "elapsedMS": "30",
+      "reason": "connection unavailable",
+      "success": "false"
+    },
+    {
+      "elapsedMS": "12",
+      "reason": "connection unavailable",
+      "success": "false"
+    },
+    {
+      "elapsedMS": "27",
+      "reason": "connection unavailable",
+      "success": "false"
+    },
+    {
+      "elapsedMS": "18",
+      "reason": "connection unavailable",
+      "success": "false"
+    },
+    {
+      "elapsedMS": "105",
+      "reason": "connection unavailable",
+      "success": "false"
+    },
+    {
+      "elapsedMS": "57",
+      "reason": "connection unavailable",
+      "success": "false"
+    },
+    {
+      "elapsedMS": "7",
+      "reason": "connection unavailable",
+      "success": "false"
+    },
+    {
+      "elapsedMS": "5",
+      "reason": "connection unavailable",
+      "success": "false"
+    },
+    {
+      "elapsedMS": "178",
+      "reason": "connection unavailable",
+      "success": "false"
+    },
+    {
+      "elapsedMS": "610",
+      "reason": "connection unavailable",
+      "success": "false"
+    }
+  ]
+}

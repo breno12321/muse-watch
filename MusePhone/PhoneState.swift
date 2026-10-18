@@ -3,6 +3,7 @@ import Observation
 import CryptoKit
 import UIKit
 import AVFoundation
+import LocalSpeech
 
 @MainActor @Observable
 final class PhoneState {
@@ -53,6 +54,11 @@ final class PhoneState {
     private var listener: Task<Void, Never>?
     private var publishTask: Task<Void, Never>?
     private var backgroundTask: UIBackgroundTaskIdentifier = .invalid
+    @ObservationIgnored private lazy var speechWorker = SpeechWorker(assets: Bundle.main.resourceURL!, directory: directory.appendingPathComponent("GeneratedSpeech"))
+    private var speechTask: Task<Void, Never>?
+    private var speechBackground: UIBackgroundTaskIdentifier = .invalid
+    private var speechEpoch = UUID()
+    private var speechPauseReason: String?
     private var audioRequests: [ReplyAudioRequest] = []
     private var fetchingAudioOnly = false
     private var audioPresentations: [String: MuseAudioPresentation] = [:]
@@ -83,6 +89,14 @@ final class PhoneState {
                     museName = saved.museName; personName = saved.personName; avatarRevision = saved.avatarRevision
                     audioPresentations = saved.audioPresentations ?? [:]
                     for index in messages.indices where messages[index].replyAudioState == .preparing { messages[index].replyAudioState = .unavailable }
+                    for index in messages.indices where messages[index].role == "muse" {
+                        if messages[index].replyComplete == nil, let id = messages[index].requestID,
+                           journal.entries.contains(where: { $0.id == id && $0.delivery == .complete }) { messages[index].replyComplete = true }
+                        if messages[index].localSpeech?.pending == true {
+                            messages[index].localSpeech?.phase = .paused
+                            messages[index].localSpeech?.detail = "Open Muse Watch on iPhone to continue."
+                        }
+                    }
                     journal.recoverInterrupted()
                     for entry in journal.entries { applyEntry(entry) }
                 }
@@ -92,6 +106,7 @@ final class PhoneState {
                 if let data = try? Data(contentsOf: legacyURL), let legacy = try? JSONDecoder().decode(LegacyHistory.self, from: data), legacy.connection == credentialNodeID, let old = legacy.sessionID, let id = UUID(uuidString: old) {
                     chats = defaultChats(mainID: id); chats[0].exists = legacy.sessionExists ?? false
                     messages = legacy.messages.filter { $0.done }.map { RelayMessage(id: $0.id, chatID: id, role: $0.role == "user" ? "user" : "muse", text: $0.text, delivery: $0.role == "user" ? .complete : nil) }
+                    for index in messages.indices where messages[index].role == "muse" { messages[index].replyComplete = true }
                 } else { chats = defaultChats() }
             }
             if paired { try persist() }
@@ -106,6 +121,11 @@ final class PhoneState {
         }
         relay.onStatus = { [weak self] reachable in self?.watchReachable = reachable }
         relay.onReplyAudioRequest = { [weak self] request in self?.requestReplyAudio(request) ?? false }
+        relay.onSpeechRequest = { [weak self] request in self?.receiveSpeech(request) ?? false }
+        relay.onAudioTransferFinished = { [weak self] in self?.pruneSpeech() }
+        NotificationCenter.default.addObserver(forName: UIApplication.didReceiveMemoryWarningNotification, object: nil, queue: .main) { [weak self] _ in
+            Task { @MainActor in self?.pauseSpeech("iPhone needs more memory. Retry audio.") }
+        }
         relay.onRename = { [weak self] edit in self?.receiveRename(edit) ?? false }
         for reference in audioPresentations.values.prefix(4) {
             recordAudioDiagnostic("Audio presentation: stored \(reference.mimeLabel); \(reference.pathKind); resources \(reference.resources != nil)")
@@ -143,7 +163,9 @@ final class PhoneState {
         } catch { chats = previous; return false }
     }
     private func snapshot() -> RelaySnapshot {
-        RelaySnapshot(account: credentialNodeID ?? "", revision: revision, paired: paired, status: status, museName: museName, personName: personName, avatarRevision: avatarRevision, chats: chats, messages: messages, updatedAt: .now)
+        var result = RelaySnapshot(account: credentialNodeID ?? "", revision: revision, paired: paired, status: status, museName: museName, personName: personName, avatarRevision: avatarRevision, chats: chats, messages: messages, updatedAt: .now)
+        result.speechVersion = LocalSpeechRequest.currentVersion
+        return result
     }
     private func persist() throws {
         guard storageReady else { throw MuseError.invalid("Saved history needs attention on iPhone before sending.") }
@@ -163,7 +185,7 @@ final class PhoneState {
     func becameActive() {
         transcriptionAuthorized = VoiceTranscriber.authorized
         transcriptionPermissionDenied = VoiceTranscriber.permissionDenied
-        relay.refresh(); publish(); queueRecoveries(); startProcessing()
+        resumeSpeech(); relay.refresh(); publish(); queueRecoveries(); startProcessing()
     }
     var blockedVoiceNotes: Int { journal.entries.filter { $0.delivery == .received && $0.transcriptionBlocked == true }.count }
     func enableTranscription() async {
@@ -195,6 +217,7 @@ final class PhoneState {
                 if messages.first(where: { $0.id == id })?.text != text, let index = chats.firstIndex(where: { $0.id == entry.request.chatID }) { chats[index].updatedAt = .now }
                 if let index = messages.firstIndex(where: { $0.id == id }) { messages[index].text = text }
                 else { messages.append(RelayMessage(id: id, requestID: requestID, chatID: entry.request.chatID, role: "muse", text: text)) }
+                if let index = messages.firstIndex(where: { $0.id == id }) { messages[index].replyComplete = done }
                 if done {
                     recordAudioDiagnostic("Muse turn: reply text completed")
                 }
@@ -218,7 +241,10 @@ final class PhoneState {
                 guard let id = UUID(uuidString: sessionID), let index = chats.firstIndex(where: { $0.id == id }), chats[index].serverTitle != title else { continue }
                 chats[index].serverTitle = title; changed()
             case .finished:
-                if let id = activeRequest { setDelivery(id, .complete) }
+                if let id = activeRequest {
+                    setDelivery(id, .complete)
+                    for index in messages.indices where messages[index].requestID == id && messages[index].role == "muse" { messages[index].replyComplete = true }
+                }
                 activeRequest = nil; status = "Ready for your Watch"; changed()
             case .failure(let issue):
                 if fetchingAudioOnly { continue }
@@ -292,6 +318,8 @@ final class PhoneState {
         journal.entries.first(where: \.canPrepare) ?? journal.entries.last(where: { $0.canRecoverReply && recoveryIDs.contains($0.id) && !attemptedRecoveries.contains($0.id) })
     }
     private func startProcessing() {
+        if nextEntry != nil, speechTask != nil { pauseSpeech(nil); return }
+        if nextEntry == nil, audioRequests.isEmpty { startSpeech(); return }
         guard pump == nil, !busy, paired, storageReady, nextEntry != nil || !audioRequests.isEmpty else { return }
         // Acquire execution time before leaving the WatchConnectivity callback.
         audioBackgroundExpired = false
@@ -306,6 +334,7 @@ final class PhoneState {
         busy = true
         defer {
             pump = nil; busy = false; monitoringRecovery = false; endBackground(); publish()
+            startSpeech()
             if !audioBackgroundExpired, restartAfterRecovery || (!audioRequests.isEmpty && nextEntry == nil) { restartAfterRecovery = false; Task { [weak self] in self?.startProcessing() } }
         }
         while let entry = nextEntry, paired, storageReady, !audioBackgroundExpired {
@@ -431,6 +460,7 @@ final class PhoneState {
         busy = true; fetchingAudioOnly = true
         defer {
             pump = nil; busy = false; fetchingAudioOnly = false; activeAudioRequest = nil; endBackground(); publish()
+            startSpeech()
             if !audioBackgroundExpired, nextEntry != nil { Task { [weak self] in self?.startProcessing() } }
         }
         while paired, storageReady, !audioBackgroundExpired, nextEntry == nil, !audioRequests.isEmpty {
@@ -517,6 +547,7 @@ final class PhoneState {
                 try FileManager.default.copyItem(at: historyURL, to: directory.appendingPathComponent("disconnected-account-\(UUID().uuidString).json"))
             }
             try SecureStore.delete("device-credentials"); try SecureStore.delete("pending-setup"); try SecureStore.delete("candidate-device-credentials")
+            invalidateSpeech()
             paired = false; connected = false; hasCandidate = false; pending = nil; setupRequest = nil; requestURL = nil
             status = "Set up your Muse"; changed()
         } catch { self.error = error.localizedDescription }
@@ -558,6 +589,7 @@ final class PhoneState {
         try SecureStore.delete("pending-setup"); try SecureStore.delete("candidate-device-credentials")
         pending = nil; setupRequest = nil; hasCandidate = false
         if let requestURL { try? FileManager.default.removeItem(at: requestURL) }; requestURL = nil
+        invalidateSpeech()
         paired = true; connected = true; credentialNodeID = verified.identity.nodeID
         chats = defaultChats(mainID: UUID(uuidString: sessionID) ?? UUID())
         messages = []; journal = RelayJournal(); audioPresentations = [:]; error = nil
@@ -572,4 +604,142 @@ final class PhoneState {
         } catch { connected = false; self.error = error.localizedDescription; status = "Setup connection failed" }
     }
 
+}
+
+// Local speech never uses MuseClient or changes the message delivery journal.
+private extension PhoneState {
+    func receiveSpeech(_ request: LocalSpeechRequest) -> Bool {
+        guard paired, storageReady, (try? request.validate()) != nil, let account = credentialNodeID,
+              let index = messages.firstIndex(where: { request.matches($0, account: account) }) else { return false }
+        let previous = messages[index].localSpeech
+        if let previous, request.revision <= previous.request.revision {
+            guard request.revision < previous.request.revision || request == previous.request else { return false }
+            if request == previous.request { sendSpeech(previous) }
+            publish(); return true
+        }
+        guard messages.enumerated().filter({ $0.offset != index && ($0.element.localSpeech?.pending == true || $0.element.localSpeech?.phase == .paused) }).count < 20 else { return false }
+        var status = LocalSpeechStatus(request: request)
+        if let previous, previous.request.cacheKey == request.cacheKey, let audio = previous.audio,
+           let bytes = try? Data(contentsOf: replyAudioURL(audio)), (try? audio.validate(bytes)) != nil {
+            status.phase = .ready; status.audio = audio
+        }
+        messages[index].localSpeech = status
+        do { try persist() }
+        catch { messages[index].localSpeech = previous; return false }
+        publishSpeech(request)
+        if status.phase == .ready { sendSpeech(status) } else { startProcessing() }
+        return true
+    }
+    func startSpeech() {
+        guard speechTask == nil, pump == nil, !busy, paired, storageReady, nextEntry == nil, audioRequests.isEmpty,
+              let index = messages.firstIndex(where: { $0.localSpeech?.phase == .queued }),
+              let status = messages[index].localSpeech else { return }
+        let request = status.request
+        guard request.matches(messages[index], account: credentialNodeID ?? "") else {
+            messages[index].localSpeech = LocalSpeechStatus(request: request, phase: .failed, detail: "This reply changed. Generate audio again.")
+            changed(); startSpeech(); return
+        }
+        let text = messages[index].text, epoch = speechEpoch
+        speechPauseReason = nil
+        speechBackground = UIApplication.shared.beginBackgroundTask(withName: "Generate reply audio") { [weak self] in
+            // UIKit calls this on the main actor. End the assertion before returning;
+            // enqueuing another Task could let iOS suspend before the pause is saved.
+            self?.pauseSpeech("Open Muse Watch on iPhone to continue.")
+        }
+        guard speechBackground != .invalid else {
+            messages[index].localSpeech = LocalSpeechStatus(request: request, phase: .paused, detail: "Open Muse Watch on iPhone to continue.")
+            changed(); return
+        }
+        messages[index].localSpeech?.phase = .generating
+        do { try persist() } catch { endSpeechBackground(); storageReady = false; return }
+        publishSpeech(request)
+        speechTask = Task { [weak self] in
+            guard let self else { return }
+            do {
+                let result = try await self.speechWorker.generate(text: text, cacheKey: request.cacheKey)
+                try Task.checkCancellation()
+                guard self.speechEpoch == epoch, self.paired, let current = self.messages.firstIndex(where: { $0.localSpeech?.request == request }),
+                      request.matches(self.messages[current], account: self.credentialNodeID ?? "") else { throw CancellationError() }
+                let bytes = try Data(contentsOf: result.file)
+                let audio = try ReplyAudio(data: bytes, duration: result.duration, generatedLocally: true)
+                try bytes.write(to: self.replyAudioURL(audio), options: [.atomic, .completeFileProtectionUntilFirstUserAuthentication])
+                self.messages[current].localSpeech = LocalSpeechStatus(request: request, phase: .ready, audio: audio)
+                try self.persist(); self.publishSpeech(request)
+                self.sendSpeech(self.messages[current].localSpeech!)
+                self.pruneSpeech()
+            } catch {
+                if self.speechEpoch == epoch, let current = self.messages.firstIndex(where: { $0.localSpeech?.request == request }), [.generating, .ready].contains(self.messages[current].localSpeech?.phase) {
+                    let cancelled = error is CancellationError
+                    let failure = error as? SpeechFailure
+                    self.messages[current].localSpeech = LocalSpeechStatus(request: request, phase: cancelled ? .paused : .failed,
+                        detail: cancelled ? "Open Muse Watch on iPhone to continue." : (failure?.localizedDescription ?? "Couldn’t generate audio. Retry on iPhone."), retryable: failure == nil)
+                    self.changed(); self.publishSpeech(request); self.pruneSpeech()
+                }
+            }
+            await self.speechWorker.releaseModels()
+            guard self.speechEpoch == epoch else { return }
+            self.speechTask = nil; self.endSpeechBackground()
+            // Only ordinary queue advancement/preemption resumes automatically. Expiration and memory pressure pause.
+            if self.speechPauseReason == nil { self.startProcessing() }
+        }
+    }
+    func pauseSpeech(_ detail: String?) {
+        speechPauseReason = detail; speechTask?.cancel()
+        for index in messages.indices where messages[index].localSpeech?.phase == .generating || (detail != nil && messages[index].localSpeech?.phase == .queued) {
+            messages[index].localSpeech?.phase = detail == nil ? .queued : .paused
+            messages[index].localSpeech?.detail = detail
+        }
+        changed()
+        for message in messages where message.localSpeech?.phase == .paused { if let request = message.localSpeech?.request { publishSpeech(request) } }
+        endSpeechBackground()
+    }
+    func resumeSpeech() {
+        for index in messages.indices where messages[index].localSpeech?.phase == .paused {
+            messages[index].localSpeech?.phase = .queued; messages[index].localSpeech?.detail = nil
+        }
+        speechPauseReason = nil; changed()
+    }
+    func endSpeechBackground() {
+        if speechBackground != .invalid { UIApplication.shared.endBackgroundTask(speechBackground); speechBackground = .invalid }
+    }
+    func invalidateSpeech() {
+        speechEpoch = UUID(); speechTask?.cancel(); speechTask = nil; endSpeechBackground()
+        Task { await speechWorker.releaseModels() }
+    }
+    func publishSpeech(_ request: LocalSpeechRequest) {
+        var value = snapshot()
+        value.messages = messages.filter { $0.id == request.messageID && $0.chatID == request.chatID }
+        relay.publish(value)
+    }
+    func sendSpeech(_ status: LocalSpeechStatus) {
+        let request = status.request
+        guard paired, storageReady, status.phase == .ready, let audio = status.audio,
+              messages.contains(where: { request.matches($0, account: credentialNodeID ?? "") && $0.localSpeech?.request == request }),
+              let bytes = try? Data(contentsOf: replyAudioURL(audio)), (try? audio.validate(bytes)) != nil else { return }
+        relay.transferReplyAudio(ReplyAudioTransfer(account: request.account, chatID: request.chatID, messageID: request.messageID, audio: audio, speechRequest: request), url: replyAudioURL(audio))
+    }
+    func pruneSpeech() {
+        let ready = messages.compactMap(\.localSpeech).filter { $0.phase == .ready && $0.audio != nil }.sorted { $0.updatedAt > $1.updatedAt }
+        let protected = relay.transferringAudioIDs
+        for status in ready.dropFirst(20) {
+            guard let audio = status.audio, !protected.contains(audio.id) else { continue }
+            try? FileManager.default.removeItem(at: replyAudioURL(audio))
+            try? FileManager.default.removeItem(at: directory.appendingPathComponent("GeneratedSpeech").appendingPathComponent(status.request.cacheKey))
+            if let index = messages.firstIndex(where: { $0.localSpeech?.request == status.request }) {
+                messages[index].localSpeech?.audio = nil; messages[index].localSpeech?.phase = .failed
+                messages[index].localSpeech?.detail = "Generate audio again to listen."
+            }
+        }
+        // Remove orphaned checkpoints/outputs, retaining only current requested work and the cache window.
+        let retained = Set(messages.compactMap(\.localSpeech).filter { $0.pending || $0.phase == .paused || $0.audio != nil }.map { $0.request.cacheKey })
+        let retainedAudio = Set(messages.compactMap { $0.localSpeech?.audio?.filename }).union(protected.map { "speech-\($0.uuidString).m4a" })
+        for url in (try? FileManager.default.contentsOfDirectory(at: directory, includingPropertiesForKeys: nil)) ?? [] where url.lastPathComponent.hasPrefix("speech-") && url.pathExtension == "m4a" && !retainedAudio.contains(url.lastPathComponent) {
+            try? FileManager.default.removeItem(at: url)
+        }
+        let root = directory.appendingPathComponent("GeneratedSpeech")
+        for url in (try? FileManager.default.contentsOfDirectory(at: root, includingPropertiesForKeys: nil)) ?? [] where !retained.contains(url.lastPathComponent) {
+            try? FileManager.default.removeItem(at: url)
+        }
+        changed()
+    }
 }
