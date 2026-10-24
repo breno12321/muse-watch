@@ -2,6 +2,15 @@
 
 A personal Apple Watch app for talking to your Muse through your iPhone. Tap once to record, review and send a voice note, then read the real reply in chat. Watch input is voice-only; the iPhone companion also supports typed messages. Includes formatted replies, cached conversations, bookmarks, and your Muse avatar.
 
+## Preview
+
+<p>
+  <img src="docs/media/iphone-home.png" alt="Muse Watch iPhone companion showing Muse and the chat list" width="260">
+  <img src="docs/media/watch-home.png" alt="Muse Watch on Apple Watch showing Voice note and Chats" width="300">
+</p>
+
+[Watch the Muse Watch demo](docs/media/muse-watch-demo.mp4)
+
 ```text
 Apple Watch → WatchConnectivity → paired iPhone → Muse
 ```
