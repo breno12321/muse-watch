@@ -9,7 +9,9 @@ A personal Apple Watch app for talking to your Muse through your iPhone. Tap onc
   <img src="docs/media/watch-home.png" alt="Muse Watch on Apple Watch showing Voice note and Chats" width="300">
 </p>
 
-[Watch the Muse Watch demo](docs/media/muse-watch-demo.mp4)
+https://github.com/user-attachments/assets/b12b6d7b-0447-4314-ad8b-9c01082fb56f
+
+[Download the original demo](docs/media/muse-watch-demo.mp4)
 
 ```text
 Apple Watch → WatchConnectivity → paired iPhone → Muse
